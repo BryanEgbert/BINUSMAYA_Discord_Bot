@@ -6,7 +6,7 @@
 		{
 			"label": "browsermob-proxy",
 			"type": "shell",
-			"command": "sh ${workspaceFolder}/browsermob-proxy-2.1.4/bin/browsermob-proxy --address localhost"
+			"command": "sh ${workspaceFolder}/browsermob-proxy-2.1.4/bin/browsermob-proxy --address localhost --port 8081"
 		}
 	]
 }
