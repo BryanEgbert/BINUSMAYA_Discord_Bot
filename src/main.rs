@@ -1,21 +1,24 @@
 #![allow(non_snake_case)]
-mod proxy;
+mod prelude;
 
-use proxy::Proxy;
+use thirtyfour::prelude::WebDriverResult;
+use prelude::*;
 
 
 #[tokio::main]
-async fn main() -> Result<(), reqwest::Error> {
-    let proxy = Proxy {host: "localhost", port: 8081, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
+async fn main() -> WebDriverResult<()> {
+    let proxy = BrowserMobProxy {host: "localhost", port: 8081, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
 
-    // Proxy::run(&proxy);
+    // BrowserMobProxy::run(&proxy);
     
-    // Proxy::create_proxy(&proxy).await?;
-    let proxy_list = Proxy::get_proxy(&proxy).await?;
+    BrowserMobProxy::create_proxy(&proxy).await?;
+    let proxy_list = BrowserMobProxy::get_proxy(&proxy).await?;
+    println!("{}", proxy_list);
 
-    Proxy::new_har(&proxy).await?;
-    
-    Proxy::close(&proxy).await?;
+    let selenium = Selenium {url: "http://localhost:4445/wd/hub".to_string()};
+
+    selenium.run(&proxy).await?;
+    // BrowserMobProxy::new_har(&proxy).await?;
 
     Ok(())
 }
@@ -26,15 +29,15 @@ mod tests {
 
     #[tokio::test]
     async fn create_proxy() -> Result<(), reqwest::Error> {
-        let proxy = Proxy {host: "localhost", port: 8081, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
+        let proxy = BrowserMobProxy {host: "localhost", port: 8081, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
 
-        Proxy::create_proxy(&proxy).await?; 
-        let proxy_list = Proxy::get_proxy(&proxy).await?;
+        BrowserMobProxy::create_proxy(&proxy).await?; 
+        let proxy_list = BrowserMobProxy::get_proxy(&proxy).await?;
 
         assert_eq!(proxy_list.contains("8"), true);
 
-        Proxy::close(&proxy).await?;
-        let proxy_list = Proxy::get_proxy(&proxy).await?;
+        BrowserMobProxy::close(&proxy).await?;
+        let proxy_list = BrowserMobProxy::get_proxy(&proxy).await?;
 
         assert_eq!(proxy_list, "null");
 

@@ -14,3 +14,4 @@ Cargo.lock
 
 /target
 browsermob-proxy-2.1.4/
+driver/

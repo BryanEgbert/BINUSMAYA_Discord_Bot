@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 reqwest = "0.11.7"
-tokio = { version = "1", features = ["full"] }
-thirtyfour = "0.22.0"
+tokio = { version = "1" }
+thirtyfour = {version = "0.27.2"}
 json = "0.12.4"
