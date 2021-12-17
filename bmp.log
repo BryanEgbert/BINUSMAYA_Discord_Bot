@@ -1,0 +1,50 @@
+[INFO  2021-12-17T23:14:56,440 net.lightbody.bmp.proxy.Main] (main) Starting BrowserMob Proxy version 2.1.4 
+[INFO  2021-12-17T23:14:56,472 org.eclipse.jetty.util.log] (main) jetty-7.x.y-SNAPSHOT 
+[INFO  2021-12-17T23:14:56,507 org.eclipse.jetty.util.log] (main) started o.e.j.s.ServletContextHandler{/,null} 
+[INFO  2021-12-17T23:14:56,707 org.eclipse.jetty.util.log] (main) Started SelectChannelConnector@localhost:8081 
+[INFO  2021-12-17T23:15:05,075 org.littleshoot.proxy.impl.DefaultHttpProxyServer] (qtp405741210-19) Starting proxy at address: 0.0.0.0/0.0.0.0:8082 
+[INFO  2021-12-17T23:15:05,162 org.littleshoot.proxy.impl.DefaultHttpProxyServer] (qtp405741210-19) Proxy listening with TCP transport 
+[WARN  2021-12-17T23:15:05,265 net.lightbody.bmp.BrowserMobProxyServer] (qtp405741210-19) Attempted to stop proxy server, but proxy was never successfully started. 
+[WARN  2021-12-17T23:15:09,290 org.eclipse.jetty.util.log] (qtp405741210-23) /proxy/null/har java.lang.NumberFormatException: For input string: "null"
+	at java.lang.NumberFormatException.forInputString(NumberFormatException.java:65) ~[?:?]
+	at java.lang.Integer.parseInt(Integer.java:652) ~[?:?]
+	at java.lang.Integer.valueOf(Integer.java:983) ~[?:?]
+	at com.google.sitebricks.conversion.StringToPrimitiveConverters$1.to(StringToPrimitiveConverters.java:14) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.conversion.StringToPrimitiveConverters$1.to(StringToPrimitiveConverters.java:12) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.conversion.StandardTypeConverter.typeSafeTo(StandardTypeConverter.java:157) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.conversion.StandardTypeConverter.convert(StandardTypeConverter.java:113) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.DefaultPageBook$MethodTuple.call(DefaultPageBook.java:799) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.DefaultPageBook$PageTuple.callAction(DefaultPageBook.java:624) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.DefaultPageBook$PageTuple.doMethod(DefaultPageBook.java:603) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.WidgetRoutingDispatcher.fireEvent(WidgetRoutingDispatcher.java:171) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.WidgetRoutingDispatcher.bindAndReply(WidgetRoutingDispatcher.java:102) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.routing.WidgetRoutingDispatcher.dispatch(WidgetRoutingDispatcher.java:88) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.DebugModeRoutingDispatcher.dispatch(DebugModeRoutingDispatcher.java:56) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.SitebricksFilter.doFilter(SitebricksFilter.java:62) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.FilterDefinition.doFilter(FilterDefinition.java:163) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:58) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.sitebricks.HiddenMethodFilter.doFilter(HiddenMethodFilter.java:70) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.FilterDefinition.doFilter(FilterDefinition.java:163) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:58) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.ManagedFilterPipeline.dispatch(ManagedFilterPipeline.java:118) ~[browsermob-dist-2.1.4.jar:?]
+	at com.google.inject.servlet.GuiceFilter.doFilter(GuiceFilter.java:113) ~[browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.servlet.ServletHandler$CachedChain.doFilter(ServletHandler.java:1323) ~[browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.servlet.ServletHandler.doHandle(ServletHandler.java:474) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.session.SessionHandler.doHandle(SessionHandler.java:224) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.handler.ContextHandler.doHandle(ContextHandler.java:935) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.servlet.ServletHandler.doScope(ServletHandler.java:404) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.session.SessionHandler.doScope(SessionHandler.java:184) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.handler.ContextHandler.doScope(ContextHandler.java:870) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.handler.ScopedHandler.handle(ScopedHandler.java:117) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.handler.HandlerWrapper.handle(HandlerWrapper.java:116) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.Server.handle(Server.java:346) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.HttpConnection.handleRequest(HttpConnection.java:596) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.HttpConnection$RequestHandler.headerComplete(HttpConnection.java:1051) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.http.HttpParser.parseNext(HttpParser.java:592) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.http.HttpParser.parseAvailable(HttpParser.java:214) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.server.HttpConnection.handle(HttpConnection.java:426) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.io.nio.SelectChannelEndPoint.handle(SelectChannelEndPoint.java:520) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.io.nio.SelectChannelEndPoint$1.run(SelectChannelEndPoint.java:40) [browsermob-dist-2.1.4.jar:?]
+	at org.eclipse.jetty.util.thread.QueuedThreadPool$3.run(QueuedThreadPool.java:528) [browsermob-dist-2.1.4.jar:?]
+	at java.lang.Thread.run(Thread.java:829) [?:?]
+
