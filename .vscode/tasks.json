@@ -6,7 +6,12 @@
 		{
 			"label": "browsermob-proxy",
 			"type": "shell",
-			"command": "sh ${workspaceFolder}/browsermob-proxy-2.1.4/bin/browsermob-proxy --address localhost --port 8081"
+			"command": "sh ${workspaceFolder}/browsermob-proxy-2.1.4/bin/browsermob-proxy --address localhost --port 8082"
+		},
+		{
+			"label": "chrome driver",
+			"type": "shell",
+			"command": "./chromedriver --port=4444"
 		}
 	]
 }

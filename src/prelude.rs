@@ -1,7 +1,10 @@
-use std::process;
+use std::{process, collections::HashMap};
 use thirtyfour::prelude::*;
+use thirtyfour::extensions::chrome::ChromeDevTools;
 use std::time::Duration;
 use tokio;
+use serde_json::json;
+use serde::Deserialize;
 
 pub struct BrowserMobProxy {
 	pub host: &'static str,
@@ -11,6 +14,16 @@ pub struct BrowserMobProxy {
 
 pub struct Selenium {
 	pub driver: WebDriver
+}
+
+#[derive(Deserialize)]
+struct Port {
+	port: u32
+}
+
+#[derive(Deserialize)]
+struct ProxyList {
+	proxyList: Vec<Port>,
 }
 
 impl BrowserMobProxy {
@@ -29,7 +42,7 @@ impl BrowserMobProxy {
 	pub async fn create_proxy(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let res = client.post(format!("http://{}:{}/proxy", self.host, self.port))
-			.query(&[("port", "8082"), ("bindAddress", self.host), ("serverBindAddress", self.host), ("trustAllServers", "true")])
+			.query(&[("port", "8083"), ("trustAllServers", "true")])
 			.send()
 			.await?;
 
@@ -37,11 +50,10 @@ impl BrowserMobProxy {
 	}
 
 	pub async fn get_proxy(&self) -> Result<String, reqwest::Error> {
-		let res = reqwest::get(format!("http://{}:{}/proxy", self.host, self.port)).await?
-			.text().await?;
-		let parsed_res = &json::parse(&res).unwrap()["proxyList"][0];
+		let res: ProxyList = reqwest::get(format!("http://{}:{}/proxy", self.host, self.port)).await?
+			.json().await?;
 		
-		Ok(parsed_res["port"].to_string())
+		Ok(res.proxyList[0].port.to_string())
 
 	}
 
@@ -56,11 +68,11 @@ impl BrowserMobProxy {
 		Ok(res.status())
 	}
 
-	pub async fn get_har(&self) -> Result<String, reqwest::Error> {
+	pub async fn get_har(&self) -> Result<serde_json::Value, reqwest::Error> {
 		let proxy = self.get_proxy().await?;
-		let res = reqwest::get(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy)).await?.text().await?;
+		let res = reqwest::get(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy)).await?.json().await?;
 
-		Ok(res.to_string())
+		Ok(res)
 	}
 
 	pub async fn close(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
@@ -81,14 +93,12 @@ impl Selenium {
 		let mcr_email = self.driver.find_element(By::Id("i0116")).await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 		
-		mcr_email.send_keys(TypingData::from("bryan.egbert@binus.ac.id") + Keys::Enter).await?;
+		mcr_email.send_keys(TypingData::from("") + Keys::Enter).await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 
-		// self.driver.find_element(By::Id("idSIButton9")).await?.click().await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 
-		self.driver.find_element(By::Id("i0118")).await?.send_keys("ControlTheBoard90").await?;
-		self.driver.find_element(By::Id("idSIButton9")).await?.click().await?;
+		self.driver.find_element(By::Id("i0118")).await?.send_keys(TypingData::from("") + Keys::Enter).await?;
 
 		self.driver.find_element(By::Id("idSIButton9")).await?.click().await?;
 		
@@ -104,8 +114,6 @@ impl Selenium {
 
 	pub async fn setup(&self) -> WebDriverResult<()> {
 
-		
-
 		self.driver.set_implicit_wait_timeout(Duration::new(30, 0)).await?;
 
 		Ok(())
@@ -113,7 +121,14 @@ impl Selenium {
 	}
 	
 	pub async fn run(&self) -> WebDriverResult<()> {
-		// self.driver.get("https://www.google.com").await?;
+		let dev_tools = ChromeDevTools::new(self.driver.session());
+		dev_tools.execute_cdp("Network.enable").await?;
+		dev_tools.execute_cdp_with_params(
+			"Network.setBlockedURLs", 
+			json!({"urls": vec!["*.jpg", "*.woff2", "*.woff", "*.ttf", "*.svg", "*.jpeg", "*.png", "*.dahsboard", "*func-bm7-notification-prod*", "*.ico", "*.json", "*image/*", "*func-bm7-organization-prod*", "*ToDo*", "*func-bm7-forum-prod*", "*fonts.googleapis.com*", 
+			"https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Ongoing/student", "https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Session/AcademicPeriod/2110"]
+		})).await?;
+
 		self.driver.get("https://newbinusmaya.binus.ac.id").await?;
 	
 		Selenium::microsoft_login(&self).await?;
@@ -121,6 +136,12 @@ impl Selenium {
 		tokio::time::sleep(Duration::from_millis(10000)).await;
 	
 		
+		Ok(())
+	}
+
+	pub async fn refresh(&self) -> WebDriverResult<()> {
+		self.driver.refresh().await?;
+
 		Ok(())
 	}
 	
