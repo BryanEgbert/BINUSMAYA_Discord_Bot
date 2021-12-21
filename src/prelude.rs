@@ -1,4 +1,3 @@
-use std::{process, collections::HashMap};
 use thirtyfour::prelude::*;
 use thirtyfour::extensions::chrome::ChromeDevTools;
 use std::time::Duration;
@@ -27,18 +26,6 @@ struct ProxyList {
 }
 
 impl BrowserMobProxy {
-	pub fn run(&self){
-		let host = self.host;
-		let port = self.port.to_string();
-
-		if cfg!(target_os = "windows") {
-			process::Command::new(self.path).args(["--address", host, "--port", port.as_str()]).spawn().expect("failed to run proxy");
-		} else {
-			process::Command::new("sh").args([self.path, "--address", host, "--port", port.as_str()]).spawn().expect("failed to run proxy");
-		}
-
-	}
-
 	pub async fn create_proxy(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let res = client.post(format!("http://{}:{}/proxy", self.host, self.port))
@@ -73,15 +60,6 @@ impl BrowserMobProxy {
 		let res = reqwest::get(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy)).await?.json().await?;
 
 		Ok(res)
-	}
-
-	pub async fn close(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
-		let client = reqwest::Client::new();
-		let port = self.get_proxy().await?;
-
-		let res = client.delete(format!("http://{}:{}/proxy/{}", self.host, self.port, port)).send().await?;
-		
-		Ok(res.status())
 	}
 }
 
@@ -136,12 +114,6 @@ impl Selenium {
 		tokio::time::sleep(Duration::from_millis(10000)).await;
 	
 		
-		Ok(())
-	}
-
-	pub async fn refresh(&self) -> WebDriverResult<()> {
-		self.driver.refresh().await?;
-
 		Ok(())
 	}
 	

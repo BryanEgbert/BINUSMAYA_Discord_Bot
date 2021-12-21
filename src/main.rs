@@ -1,12 +1,10 @@
 #![allow(non_snake_case)]
 mod prelude;
 
-use std::time::Duration;
 use thirtyfour::Capabilities;
 use thirtyfour::prelude::*;
 use prelude::*;
-use thirtyfour::common::capabilities::desiredcapabilities::Proxy; 
-use std::{fs, io::prelude::*};
+use thirtyfour::common::capabilities::desiredcapabilities::Proxy;
 
 
 #[tokio::main]
@@ -56,26 +54,4 @@ async fn main() -> WebDriverResult<()> {
     selenium.quit().await?;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn create_proxy() -> Result<(), reqwest::Error> {
-        let proxy = BrowserMobProxy {host: "localhost", port: 8081, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
-
-        BrowserMobProxy::create_proxy(&proxy).await?; 
-        let proxy_list = BrowserMobProxy::get_proxy(&proxy).await?;
-
-        assert_eq!(proxy_list.contains("8"), true);
-
-        BrowserMobProxy::close(&proxy).await?;
-        let proxy_list = BrowserMobProxy::get_proxy(&proxy).await?;
-
-        assert_eq!(proxy_list, "null");
-
-        Ok(())
-    }
 }
