@@ -1,5 +1,4 @@
-use thirtyfour::prelude::*;
-use thirtyfour::extensions::chrome::ChromeDevTools;
+use thirtyfour::{prelude::*, extensions::chrome::ChromeDevTools};
 use std::time::Duration;
 use tokio;
 use serde_json::json;
@@ -12,7 +11,15 @@ pub struct BrowserMobProxy {
 }
 
 pub struct Selenium {
-	pub driver: WebDriver
+	pub driver: WebDriver,
+	pub email: String,
+	pub password: String
+}
+
+#[derive(Debug)]
+pub enum Status {
+	VALID,
+	INVALID
 }
 
 #[derive(Deserialize)]
@@ -64,41 +71,42 @@ impl BrowserMobProxy {
 }
 
 impl Selenium {
-	async fn microsoft_login(&self) -> WebDriverResult<()> {
+	async fn microsoft_login(&self) -> WebDriverResult<Status> {
 		let mcr_login_btn = self.driver.find_element(By::ClassName("button--azure--ad")).await?; 
 		mcr_login_btn.click().await?;
 
 		let mcr_email = self.driver.find_element(By::Id("i0116")).await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 		
-		mcr_email.send_keys(TypingData::from("") + Keys::Enter).await?;
+		mcr_email.send_keys(TypingData::from(self.email.clone()) + Keys::Enter).await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 
-		tokio::time::sleep(Duration::from_millis(1000)).await;
-
-		self.driver.find_element(By::Id("i0118")).await?.send_keys(TypingData::from("") + Keys::Enter).await?;
-
+		self.driver.find_element(By::Id("i0118")).await?.send_keys(TypingData::from(self.password.clone()) + Keys::Enter).await?;
 		self.driver.find_element(By::Id("idSIButton9")).await?.click().await?;
-		
+		tokio::time::sleep(Duration::from_millis(1000)).await;
 
-		Ok(())
+		if self.driver.current_url().await?.contains("https://login.microsoftonline.com/") {
+			Ok(Status::INVALID)
+		} else {
+			Ok(Status::VALID)
+		}
 	}
-
-	pub fn init(driver: WebDriver) -> Self {
+	
+	pub fn init(driver: WebDriver, email: String, password: String) -> Self {
 		Self {
-			driver
+			driver,
+			email,
+			password
 		}
 	}
 
 	pub async fn setup(&self) -> WebDriverResult<()> {
-
 		self.driver.set_implicit_wait_timeout(Duration::new(30, 0)).await?;
 
 		Ok(())
-
 	}
 	
-	pub async fn run(&self) -> WebDriverResult<()> {
+	pub async fn run(&self) -> WebDriverResult<Status> {
 		let dev_tools = ChromeDevTools::new(self.driver.session());
 		dev_tools.execute_cdp("Network.enable").await?;
 		dev_tools.execute_cdp_with_params(
@@ -109,12 +117,9 @@ impl Selenium {
 
 		self.driver.get("https://newbinusmaya.binus.ac.id").await?;
 	
-		Selenium::microsoft_login(&self).await?;
-	
-		tokio::time::sleep(Duration::from_millis(10000)).await;
-	
-		
-		Ok(())
+		let status = Selenium::microsoft_login(&self).await?;
+
+		Ok(status)
 	}
 	
 	pub async fn quit(self) -> WebDriverResult<()> {
