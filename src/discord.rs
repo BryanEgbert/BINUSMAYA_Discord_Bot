@@ -1,10 +1,13 @@
 use thirtyfour::{Capabilities, prelude::*, common::capabilities::desiredcapabilities::Proxy};
 use serenity::http::Http;
 use serenity::model::prelude::UserId;
-use std::collections::HashSet;
+use std::{collections::HashSet, fs::{File, OpenOptions}, io::Write};
+use csv::Writer;
+use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Local};
 use serenity::{
     async_trait,
-    model::{channel::Message},
+    model::{channel::Message, guild::Guild},
     prelude::*,
 };
 use serenity::framework::standard::{
@@ -25,6 +28,13 @@ use crate::prelude::*;
 
 use std::env;
 
+#[derive(Serialize, Deserialize)]
+struct CsvRecord<'a> {
+	member_id: u64,
+	auth: &'a str,
+	last_registered: DateTime<Local>,
+}
+
 #[group]
 #[commands(ping, register, add)]
 pub struct General;
@@ -33,7 +43,11 @@ pub struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-	
+	async fn guild_create(&self, _: Context, guild: Guild, _: bool) {
+		File::create(format!("{}.csv", guild.id)).unwrap_or_else(|e| {
+			panic!("problem creating file: {:?}", e);
+		});
+	}
 }
 
 #[help]
@@ -156,14 +170,29 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 		Status::VALID => {
 			let har = BrowserMobProxy::get_har(&proxy).await?;
 			let len = har["log"]["entries"].as_array().unwrap().len();
-		
+			let bearer_token = &har["log"]["entries"][len - 1]["request"]["headers"][6]["value"].to_string();
+
+			let mut wtr = Writer::from_writer(vec![]);
+			wtr.serialize(CsvRecord {
+				member_id: *msg.author.id.as_u64(),
+				auth: &bearer_token[1..bearer_token.len()-1],
+				last_registered: Local::now()			
+			})?;
+
+			let mut file = OpenOptions::new()
+			.append(true)
+			.open("770274344051408907.csv")
+			.unwrap();
+
+			if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().unwrap()).unwrap()) {
+				eprintln!("Error when writing to a file: {}", err);
+			}
+			
 			msg.author.dm(&ctx, |m| {
 				m.embed(|e| e
 					.colour(0x03aaf9)
-					.field("Account is valid", format!("{} {}\n{}", email, password, har["log"]["entries"][len - 1]["request"]["headers"][6]["value"]), false))
-			}).await?;
-		
-			Ok(())
+					.field("Account Registered", "Account successfully registered", false)
+			)}).await?;
 		},
 		Status::INVALID => {
 			msg.author.dm(&ctx, |m| {
@@ -171,11 +200,16 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 					.colour(0x03aaf9)
 					.field("Account is not valid", "Wrong email or password", false))
 			}).await?;
-		
-			Ok(())
 		}
+
 	}
 
+	Ok(())
+}
+
+async fn schedule(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+	
+	Ok(())
 }
 
 
