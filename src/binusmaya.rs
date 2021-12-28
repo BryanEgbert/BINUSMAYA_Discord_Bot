@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Utc};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, REFERER, ORIGIN, USER_AGENT, HOST, AUTHORIZATION};
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +42,7 @@ pub struct RoleActivity {
 	is_active: bool
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulePayload {
 	role_activity: Vec<RoleActivity>
@@ -66,6 +66,47 @@ pub struct UserProfile {
 	xP_point: f32,
 	category_list: Vec<String>,
 	role_categories: Vec<RoleCategories>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomParam {
+	class_id: String,
+	class_session_id: String,
+	session_number: u32,
+	class_session_content: String
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Schedule {
+	date_start: DateTime<Utc>,
+	date_end: DateTime<Utc>,
+	title: String,
+	content: String,
+	location: Option<String>,
+	location_value: Option<String>,
+	schedule_type: String,
+	custom_param: CustomParam,
+	class_delivery_mode: String,
+	delivery_mode: String,
+	delivery_mode_desc: String,
+	academic_career_desc: String,
+	institution_desc: String,
+	organization_role_id: String
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleList {
+	Schedule: Vec<Schedule>,
+	date_start: DateTime<Utc>
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(transparent)]
+pub struct ScheduleResponse {
+	list: Vec<ScheduleList>
 }
 
 pub struct BinusmayaAPI {
@@ -117,7 +158,7 @@ impl BinusmayaAPI {
 		Ok(user_profile)
 	}
 
-	pub async fn get_schedule(&self) -> Result<String, reqwest::Error> {
+	pub async fn get_schedule(&self) -> Result<(), reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 
 		let mut headers = HeaderMap::new();
@@ -136,15 +177,17 @@ impl BinusmayaAPI {
 
 		let client = reqwest::Client::new();
 		let schedules = client
-			.post(format!("https://func-bm7-schedule-prod.azurewebsites.net/api/Schedule/Month-v1/{}", chrono::offset::Local::now().format("%Y-%m-1")))
+			.post(format!("https://func-bm7-schedule-prod.azurewebsites.net/api/Schedule/Month-v1/{}", chrono::offset::Utc::now().format("%Y-%m-1")))
 			.headers(headers)
 			.json(&SchedulePayload {
 				role_activity: role_activities
 			})
-			.send().await.expect("error when serializing").text().await.expect("Error in sending text");
+			.send()
+			.await.expect("error when serializing")
+			.json::<ScheduleResponse>().await.expect("Something's wrong when parsing response");
 
 		println!("{:?}", schedules);
 
-		Ok(schedules)
+		Ok(())
 	}
 }

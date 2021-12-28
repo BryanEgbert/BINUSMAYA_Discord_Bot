@@ -1,13 +1,16 @@
+use serenity::model::prelude::Ready;
 use thirtyfour::{Capabilities, prelude::*, common::capabilities::desiredcapabilities::Proxy};
 use serenity::http::Http;
 use serenity::model::prelude::UserId;
-use std::{collections::HashSet, fs::{File, OpenOptions}, io::Write};
-use csv::Writer;
+use std::{collections::{HashMap, HashSet}, fs::{File, OpenOptions, read_to_string}, io::Write, path::Path};
+use csv_async::{AsyncSerializer, AsyncDeserializer};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Local};
+use tokio_stream::StreamExt;
+use tokio::sync::Mutex;
 use serenity::{
     async_trait,
-    model::{channel::Message, guild::Guild},
+    model::{channel::Message},
     prelude::*,
 };
 use serenity::framework::standard::{
@@ -24,31 +27,53 @@ use serenity::framework::standard::{
     }
 };
 
+
 use crate::prelude::*;
+pub use crate::binusmaya::*;
 
 use std::env;
 
-#[derive(Serialize, Deserialize)]
-struct CsvRecord<'a> {
+const FILE_NAME: &str = "user_data.csv";
+lazy_static!{
+	static ref USER_DATA: Mutex<HashMap<u64, String>> = Mutex::new(HashMap::new());
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct UserRecord {
 	member_id: u64,
-	auth: &'a str,
+	auth: String,
 	last_registered: DateTime<Local>,
 }
 
+
 #[group]
-#[commands(ping, register, add)]
+#[commands(ping, register, add, schedule)]
 pub struct General;
 
 pub struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-	async fn guild_create(&self, _: Context, guild: Guild, _: bool) {
-		File::create(format!("{}.csv", guild.id)).unwrap_or_else(|e| {
-			panic!("problem creating file: {:?}", e);
-		});
+
+	async fn ready(&self, _ctx: Context, data_about_bot: Ready) {
+		println!("{} is ready", data_about_bot.application.id);
+
+		if !Path::new(FILE_NAME).exists() {
+			File::create("user_data.csv").unwrap_or_else(|e| {
+				panic!("Error in creating file: {:?}", e);
+			});	
+		}
+
+		let content = read_to_string(FILE_NAME).expect("Something's wrong when reading a file");
+		let mut rdr = AsyncDeserializer::from_reader(content.as_bytes());
+		let mut records = rdr.deserialize::<UserRecord>();
+		while let Some(record) = records.next().await {
+			let record = record.unwrap();
+			USER_DATA.lock().await.insert(record.member_id, record.auth);
+		}
 	}
 }
+
 
 #[help]
 #[suggestion_text(register)]
@@ -172,19 +197,22 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 			let len = har["log"]["entries"].as_array().unwrap().len();
 			let bearer_token = &har["log"]["entries"][len - 1]["request"]["headers"][6]["value"].to_string();
 
-			let mut wtr = Writer::from_writer(vec![]);
-			wtr.serialize(CsvRecord {
+			let user_record = &UserRecord {
 				member_id: *msg.author.id.as_u64(),
-				auth: &bearer_token[1..bearer_token.len()-1],
+				auth: bearer_token[1..bearer_token.len()-1].to_string(),
 				last_registered: Local::now()			
-			})?;
+			};
+
+			let mut wtr = AsyncSerializer::from_writer(vec![]);
+
+			wtr.serialize(user_record).await?;
 
 			let mut file = OpenOptions::new()
 			.append(true)
-			.open("770274344051408907.csv")
+			.open("user_data.csv")
 			.unwrap();
 
-			if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().unwrap()).unwrap()) {
+			if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().await?).unwrap()) {
 				eprintln!("Error when writing to a file: {}", err);
 			}
 			
@@ -201,13 +229,36 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 					.field("Account is not valid", "Wrong email or password", false))
 			}).await?;
 		}
-
 	}
 
 	Ok(())
 }
 
-async fn schedule(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
+#[command]
+async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
+	println!("lol");
+
+	let user_data = USER_DATA.lock().await;
+
+	if user_data.contains_key(msg.author.id.as_u64()) {
+		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
+		let schedule = binusmaya_api.get_schedule().await.expect("something's wrong");
+		// msg.channel_id.send_message(&ctx.http, |m| {
+		// 	m.embed(|e| e
+		// 		.colour(0x03aaf9)
+		// 		.field("Schedule", schedule, false)
+		// 	)
+		// }).await.unwrap();
+	} else {
+		msg.channel_id.send_message(&ctx.http, |m| {
+			m.embed(|e| e
+				.colour(0x03aaf9)
+				.field("You're not registered", "please register first using `=register` command", false)
+			)
+		}).await.unwrap();
+	}
+
+	println!("{}", chrono::offset::Local::now().format("%Y-%m-1"));
 	
 	Ok(())
 }
