@@ -3,7 +3,6 @@ use std::time::Duration;
 use tokio;
 use serde_json::json;
 use serde::Deserialize;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, REFERER, ORIGIN, USER_AGENT, HOST, AUTHORIZATION};
 
 pub struct BrowserMobProxy {
 	pub host: &'static str,
@@ -15,10 +14,6 @@ pub struct Selenium {
 	pub driver: WebDriver,
 	pub email: String,
 	pub password: String
-}
-
-pub struct BinusmayaAPI {
-	pub token: String
 }
 
 #[derive(Debug)]
@@ -35,45 +30,6 @@ struct Port {
 #[derive(Deserialize)]
 struct ProxyList {
 	proxyList: Vec<Port>,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct RoleCategory {
-	name: String,
-	user_code: String,
-	role_id: String,
-	role_type: String,
-	role_organization_id: String,
-	academic_career_id: String,
-	academic_career: String,
-	academic_career_desc: String,
-	institution_id: Option<String>,
-	institution: String,
-	institution_desc: String,
-	academic_program: String,
-	academic_program_desc: String,
-	is_primary: bool,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct RoleCategories {
-	name: String,
-	roles: Vec<RoleCategory>
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct UserProfile {
-	user_id: String,
-	full_name: String,
-	person_code: String,
-	email: String,
-	user_picture_url: String,
-	xP_point: f32,
-	category_list: Vec<String>,
-	role_categories: Vec<RoleCategories>,
 }
 
 impl BrowserMobProxy {
@@ -174,28 +130,4 @@ impl Selenium {
 		Ok(())
 	}
 	
-}
-
-impl BinusmayaAPI {
-	fn init_user_profile_header(&self) -> HeaderMap {
-		let mut headers = HeaderMap::new();
-		headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36 OPR/81.0.4196.61"));
-		headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-		headers.insert(HOST, HeaderValue::from_static("apim-bm7-prod.azure-api.net"));
-		headers.insert(ORIGIN, HeaderValue::from_static("https://newbinusmaya.binus.ac.id"));
-		headers.insert(REFERER, HeaderValue::from_static("https://newbinusmaya.binus.ac.id/"));
-		headers.insert(AUTHORIZATION, HeaderValue::from_str(&self.token[1..self.token.len()-1]).unwrap()); // string slice remove double quotes
-
-		headers
-	}
-
-	pub async fn get_user_profile(&self) -> Result<UserProfile, reqwest::Error> {
-		let client = reqwest::Client::new();
-		let user_profile = client
-			.get("https://apim-bm7-prod.azure-api.net/func-bm7-profile-prod/UserProfile")
-			.headers(BinusmayaAPI::init_user_profile_header(self))
-			.send().await?.json::<UserProfile>().await?;
-
-		Ok(user_profile)
-	}
 }
