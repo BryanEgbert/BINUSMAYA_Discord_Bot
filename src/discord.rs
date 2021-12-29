@@ -236,28 +236,28 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 #[command]
 async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
-	println!("lol");
-
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
 		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-		let schedule = binusmaya_api.get_schedule().await.expect("something's wrong");
+		let schedule = binusmaya_api.get_schedule().await?;
+
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
+				.title("Today's Schedule")
 				.colour(0x03aaf9)
-				.field("Schedule", schedule, false)
+				.field(format!("{} Sessions", schedule.schedule.len()), schedule, true)
 			)
-		}).await.unwrap();
+		}).await?;
 	} else {
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
 				.colour(0x03aaf9)
 				.field("You're not registered", "please register first using `=register` command", false)
 			)
-		}).await.unwrap();
+		}).await?;
 	}
-		
+
 	Ok(())
 }
 
