@@ -74,14 +74,14 @@ pub struct CustomParam {
 	class_id: String,
 	class_session_id: String,
 	session_number: u32,
-	class_session_content: String
+	class_session_content_id: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Schedule {
-	date_start: DateTime<Utc>,
-	date_end: DateTime<Utc>,
+	date_start: String,
+	date_end: String,
 	title: String,
 	content: String,
 	location: Option<String>,
@@ -99,8 +99,9 @@ pub struct Schedule {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleList {
-	Schedule: Vec<Schedule>,
-	date_start: DateTime<Utc>
+	#[serde(rename(deserialize = "Schedule"))]
+	schedule: Vec<Schedule>,
+	date_start:String
 }
 
 #[derive(Deserialize, Debug)]
@@ -158,7 +159,7 @@ impl BinusmayaAPI {
 		Ok(user_profile)
 	}
 
-	pub async fn get_schedule(&self) -> Result<(), reqwest::Error> {
+	pub async fn get_schedule(&self) -> Result<String, reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 
 		let mut headers = HeaderMap::new();
@@ -188,6 +189,6 @@ impl BinusmayaAPI {
 
 		println!("{:?}", schedules);
 
-		Ok(())
+		Ok(schedules.list[0].date_start.clone())
 	}
 }

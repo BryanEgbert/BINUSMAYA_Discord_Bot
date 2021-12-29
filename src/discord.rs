@@ -243,12 +243,12 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 	if user_data.contains_key(msg.author.id.as_u64()) {
 		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
 		let schedule = binusmaya_api.get_schedule().await.expect("something's wrong");
-		// msg.channel_id.send_message(&ctx.http, |m| {
-		// 	m.embed(|e| e
-		// 		.colour(0x03aaf9)
-		// 		.field("Schedule", schedule, false)
-		// 	)
-		// }).await.unwrap();
+		msg.channel_id.send_message(&ctx.http, |m| {
+			m.embed(|e| e
+				.colour(0x03aaf9)
+				.field("Schedule", schedule, false)
+			)
+		}).await.unwrap();
 	} else {
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
@@ -257,9 +257,7 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 			)
 		}).await.unwrap();
 	}
-
-	println!("{}", chrono::offset::Local::now().format("%Y-%m-1"));
-	
+		
 	Ok(())
 }
 
