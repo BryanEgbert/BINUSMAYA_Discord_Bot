@@ -1,8 +1,27 @@
-use serenity::model::prelude::Ready;
-use thirtyfour::{Capabilities, prelude::*, common::capabilities::desiredcapabilities::Proxy};
-use serenity::http::Http;
-use serenity::model::prelude::UserId;
-use std::{collections::{HashMap, HashSet}, fs::{File, OpenOptions, read_to_string}, io::Write, path::Path};
+use thirtyfour::{
+	Capabilities, 
+	prelude::*, 
+	common::capabilities::desiredcapabilities::Proxy
+};
+use std::{
+	collections::{
+		HashMap, 
+		HashSet
+	}, 
+	fs::{
+		File, 
+		OpenOptions, 
+		read_to_string, 
+		metadata
+	}, 
+	io::Write, 
+	path::Path, 
+	thread::{
+		self, 
+		sleep
+	}, 
+	time::Duration, f32::consts::E
+};
 use csv_async::{AsyncSerializer, AsyncDeserializer};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Local};
@@ -10,8 +29,9 @@ use tokio_stream::StreamExt;
 use tokio::sync::Mutex;
 use serenity::{
     async_trait,
-    model::{channel::Message},
+    model::prelude::*,
     prelude::*,
+	http::Http
 };
 use serenity::framework::standard::{
     StandardFramework,
@@ -26,14 +46,14 @@ use serenity::framework::standard::{
 		help
     }
 };
-
-
 use crate::prelude::*;
-pub use crate::binusmaya::*;
-
+use crate::binusmaya::*;
 use std::env;
+use async_recursion::async_recursion;
+use rayon::prelude::*;
 
-const FILE_NAME: &str = "user_data.csv";
+const USER_FILE: &str = "user_data.csv";
+const LOGIN_FILE: &str = "last_login.txt";
 lazy_static!{
 	static ref USER_DATA: Mutex<HashMap<u64, String>> = Mutex::new(HashMap::new());
 }
@@ -45,38 +65,100 @@ struct UserRecord {
 	last_registered: DateTime<Local>,
 }
 
-
 #[group]
-#[commands(ping, register, add, schedule)]
+#[commands(ping, register, add, schedule, details, classes)]
 pub struct General;
 
 pub struct Handler;
 
+#[async_recursion]
+async fn send_schedule_daily(ctx: &Context) {
+	let metadata =  metadata(LOGIN_FILE).unwrap();
+
+	if let Ok(time) = metadata.modified() {
+		let last_login = DateTime::<Local>::from(time).date();
+		loop {
+			if last_login.succ() == chrono::offset::Local::now().date() {
+				for (user_id, user_auth) in USER_DATA.lock().await.clone().into_iter() {
+					let binusmaya_api = BinusmayaAPI{token: user_auth};
+					let schedule = binusmaya_api.get_schedule().await.unwrap();
+					let channel_id = UserId(user_id).create_dm_channel(&ctx.http)
+						.await.unwrap().id;
+	
+					if let Some(classes) = schedule {
+						ChannelId(*channel_id.as_u64()).send_message(&ctx.http, |m| {
+							m.embed(|e| e
+								.title("Today's Schedule")
+								.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
+								.colour(0x03aaf9)
+							)
+						}).await.unwrap();
+
+						// classes.schedule.par_iter().for_each(|c| {
+						// 	let session_id = c.custom_param.class_session_id.clone();
+						// 	binusmaya_api.update_student_progress(session_id);
+						// });
+					} else {
+						ChannelId(*channel_id.as_u64()).send_message(&ctx.http, |m| {
+							m.embed(|e| e
+								.title("Today's Schedule")
+								.colour(0x03aaf9)
+								.field("Holiday!", "No classes/sessions for today", true)
+							)
+						}).await.unwrap();
+					}
+				}
+
+				File::create(LOGIN_FILE).unwrap_or_else(|e| {
+					panic!("Error in creating file: {:?}", e);
+				});
+
+				send_schedule_daily(ctx).await;
+			} else {
+				sleep(Duration::from_secs(1));
+			}
+		}
+	} else {
+		panic!("File metadata not supported in your platform");
+	}
+}
+
 #[async_trait]
 impl EventHandler for Handler {
 
-	async fn ready(&self, _ctx: Context, data_about_bot: Ready) {
-		println!("{} is ready", data_about_bot.application.id);
+	async fn ready(&self, ctx: Context, data_about_bot: Ready) {
 
-		if !Path::new(FILE_NAME).exists() {
-			File::create("user_data.csv").unwrap_or_else(|e| {
+		if !Path::new(USER_FILE).exists() {
+			File::create(USER_FILE).unwrap_or_else(|e| {
 				panic!("Error in creating file: {:?}", e);
 			});	
 		}
 
-		let content = read_to_string(FILE_NAME).expect("Something's wrong when reading a file");
+		if !Path::new(LOGIN_FILE).exists() {
+			File::create(LOGIN_FILE).unwrap_or_else(|e| {
+				panic!("Error in creating file: {:?}", e);
+			});
+		}
+
+		let content = read_to_string(USER_FILE).expect("Something's wrong when reading a file");
 		let mut rdr = AsyncDeserializer::from_reader(content.as_bytes());
 		let mut records = rdr.deserialize::<UserRecord>();
 		while let Some(record) = records.next().await {
 			let record = record.unwrap();
 			USER_DATA.lock().await.insert(record.member_id, record.auth);
 		}
+
+		thread::spawn(|| async move {
+			println!("{:?} is running", thread::current().id());
+			send_schedule_daily(&ctx).await;
+		});
+
+		println!("{} is ready", data_about_bot.user.name);
 	}
 }
 
 
 #[help]
-#[suggestion_text(register)]
 async fn help(ctx: &Context, msg:&Message, args: Args, help_options: &'static HelpOptions, groups: &[&'static CommandGroup], owners: HashSet<UserId>) -> CommandResult {
 	let _ = help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
 
@@ -133,7 +215,7 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
-#[description("Receive a DM to register your binus account for additional features which is still under development")]
+#[description("Receive a DM to register your binus account for additional features")]
 #[only_in("guild")]
 async fn register(ctx: &Context, msg: &Message) -> CommandResult {
 	msg.author.dm(&ctx, |m| {
@@ -242,13 +324,23 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
 		let schedule = binusmaya_api.get_schedule().await?;
 
-		msg.channel_id.send_message(&ctx.http, |m| {
-			m.embed(|e| e
-				.title("Today's Schedule")
-				.colour(0x03aaf9)
-				.field(format!("{} Sessions", schedule.schedule.len()), schedule, true)
-			)
-		}).await?;
+		if let Some(class) = schedule {
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.title("Today's Schedule")
+					.description(format!("{} Session(s)\n{}", class.schedule.len(), class))
+					.colour(0x03aaf9)
+				)
+			}).await?;
+		} else {
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.title("Today's Schedule")
+					.colour(0x03aaf9)
+					.field("Holiday!", "No classes/sessions for today", true)
+				)
+			}).await?;
+		}
 	} else {
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
@@ -258,6 +350,64 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 		}).await?;
 	}
 
+	Ok(())
+}
+
+#[command]
+async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+	let course_name = args.single::<String>()?;
+	let class_component = args.single::<String>()?;
+	let session_number = args.single::<usize>()?;
+	let user_data = USER_DATA.lock().await;
+
+	
+	if user_data.contains_key(msg.author.id.as_u64()) {
+		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
+		let class_id = &binusmaya_api.get_classes().await?
+			.classes.par_iter()
+			.find_any(|c| c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)).unwrap()
+			.class_id.clone();
+
+		let class_details = binusmaya_api.get_class_details(class_id.to_string()).await?;
+
+		if class_details.sessions.len() < session_number {
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.colour(0x03aaf9)
+					.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
+				)
+			}).await?;
+		} else {
+			let session_details = binusmaya_api.get_resource(class_details.sessions[session_number - 1].id.clone()).await?;
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
+					.colour(0x03aaf9)
+					.field("Subtopics", format!("{:#?}", session_details.course_sub_topic), false)
+				)
+			}).await.expect("s");
+		}
+	}
+
+	Ok(())
+}
+
+#[command]
+async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
+	let user_data = USER_DATA.lock().await;
+
+	if user_data.contains_key(msg.author.id.as_u64()) {
+		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
+		let classes = binusmaya_api.get_classes().await?;
+
+		msg.channel_id.send_message(&ctx.http, |m| {
+			m.embed(|e| e
+				.title("Class List")
+				.description(classes)
+				.colour(0x03aaf9)
+			)
+		}).await?;
+	}
 	Ok(())
 }
 

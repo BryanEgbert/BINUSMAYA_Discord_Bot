@@ -19,3 +19,4 @@ driver/
 *.log
 chromedriver
 *.csv
+*.txt
