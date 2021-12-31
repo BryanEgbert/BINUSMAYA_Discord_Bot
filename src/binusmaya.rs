@@ -150,7 +150,7 @@ pub struct Lecturer {
 	user_code: String
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
 	pub android_redirect_url: Option<String>,
@@ -178,6 +178,26 @@ pub struct Resource {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(transparent)]
+pub struct ResourceList {
+	resources: Vec<Resource>
+}
+
+impl fmt::Display for ResourceList {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for resource in &self.resources.clone() {
+			write!(f, "> Name: **{}**\n> Duration: **{} min**\n> Type: **{}**\n\n", 
+				resource.name, 
+				resource.duration.parse::<u32>().unwrap() / 60,
+				resource.resource_type
+			)?;
+		}
+
+		Ok(())
+	}
+}
+
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionDetails {
 	pub class_delivery_mode: String,
@@ -193,7 +213,7 @@ pub struct SessionDetails {
 	pub lecturers: Vec<Lecturer>,
 	pub meeting_end: String,
 	pub meeting_start: String,
-	pub resources: Vec<Resource>,
+	pub resources: ResourceList,
 	pub session_number: u8,
 	pub start_date_session_utc: String,
 	pub status: Option<String>,
@@ -201,7 +221,7 @@ pub struct SessionDetails {
 	pub total_resource: u8
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Class {
 	pub class_Code: String,
@@ -211,7 +231,7 @@ pub struct Class {
 	pub ssr_component: String
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct ClassVec {
 	pub classes: Vec<Class>
@@ -267,6 +287,7 @@ pub struct StudentProgressPayload {
 	status: u8
 }
 
+#[derive(Clone)]
 pub struct BinusmayaAPI {
 	pub token: String
 }
@@ -369,7 +390,7 @@ impl BinusmayaAPI {
 			.await.expect("error when serializing");
 
 		if response.status() != reqwest::StatusCode::NO_CONTENT {
-			return Ok(response.json::<Option<Schedule>>().await.expect("Something's wrong when parsing response"));
+			return Ok(Some(response.json::<Schedule>().await.expect("Something's wrong when parsing response")));
 		} else {
 			return Ok(None);
 		}

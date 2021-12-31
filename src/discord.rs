@@ -14,24 +14,25 @@ use std::{
 		read_to_string, 
 		metadata
 	}, 
-	io::Write, 
-	path::Path, 
 	thread::{
 		self, 
 		sleep
 	}, 
-	time::Duration, f32::consts::E
+	io::Write, 
+	path::Path, 
+	time::Duration
 };
 use csv_async::{AsyncSerializer, AsyncDeserializer};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Local};
-use tokio_stream::StreamExt;
+use futures::{stream ,StreamExt, future};
 use tokio::sync::Mutex;
 use serenity::{
     async_trait,
     model::prelude::*,
     prelude::*,
-	http::Http
+	http::Http,
+	utils::Colour, framework::standard::{macros::hook, CommandError}
 };
 use serenity::framework::standard::{
     StandardFramework,
@@ -44,16 +45,17 @@ use serenity::framework::standard::{
         command,
         group,
 		help
-    }
+    },
 };
 use crate::prelude::*;
 use crate::binusmaya::*;
 use std::env;
 use async_recursion::async_recursion;
-use rayon::prelude::*;
 
 const USER_FILE: &str = "user_data.csv";
 const LOGIN_FILE: &str = "last_login.txt";
+const PARALLEL_REQUESTS: usize = 4;
+const PRIMARY_COLOR: Colour = Colour::BLUE;
 lazy_static!{
 	static ref USER_DATA: Mutex<HashMap<u64, String>> = Mutex::new(HashMap::new());
 }
@@ -79,41 +81,56 @@ async fn send_schedule_daily(ctx: &Context) {
 		let last_login = DateTime::<Local>::from(time).date();
 		loop {
 			if last_login.succ() == chrono::offset::Local::now().date() {
-				for (user_id, user_auth) in USER_DATA.lock().await.clone().into_iter() {
-					let binusmaya_api = BinusmayaAPI{token: user_auth};
-					let schedule = binusmaya_api.get_schedule().await.unwrap();
-					let channel_id = UserId(user_id).create_dm_channel(&ctx.http)
-						.await.unwrap().id;
-	
-					if let Some(classes) = schedule {
-						ChannelId(*channel_id.as_u64()).send_message(&ctx.http, |m| {
-							m.embed(|e| e
-								.title("Today's Schedule")
-								.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
-								.colour(0x03aaf9)
-							)
-						}).await.unwrap();
+				stream::iter(USER_DATA.lock().await.clone().into_iter())
+					.map(|(user_id, user_auth)| {
+						let context = ctx.clone();
 
-						// classes.schedule.par_iter().for_each(|c| {
-						// 	let session_id = c.custom_param.class_session_id.clone();
-						// 	binusmaya_api.update_student_progress(session_id);
-						// });
-					} else {
-						ChannelId(*channel_id.as_u64()).send_message(&ctx.http, |m| {
-							m.embed(|e| e
-								.title("Today's Schedule")
-								.colour(0x03aaf9)
-								.field("Holiday!", "No classes/sessions for today", true)
-							)
-						}).await.unwrap();
-					}
-				}
+						tokio::spawn(async move {
+							let binusmaya_api = BinusmayaAPI{token: user_auth};
+							let schedule = binusmaya_api.get_schedule().await.unwrap();
+							let channel_id = UserId(user_id).create_dm_channel(&context.http)
+								.await.unwrap().id;
+			
+							if let Some(classes) = schedule {
+								ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
+									m.embed(|e| e
+										.title("Today's Schedule")
+										.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
+										.colour(PRIMARY_COLOR)
+									)
+								}).await.unwrap();
+
+								stream::iter(classes.schedule)
+									.map(|s| {
+										s.custom_param.class_session_id
+									})
+									.for_each(|s| async {
+										binusmaya_api.update_student_progress(s).await.unwrap();
+									}).await;
+							} else {
+								ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
+									m.embed(|e| e
+										.title("Today's Schedule")
+										.colour(PRIMARY_COLOR)
+										.field("Holiday!", "No classes/sessions for today", true)
+									)
+								}).await.unwrap();
+							}
+						})
+					})
+					.buffer_unordered(PARALLEL_REQUESTS)
+					.for_each(|status| async move {
+						match status {
+							Ok(_) => {},
+							Err(e) => eprintln!("Error in child thread: {}", e)
+						}
+					}).await;
 
 				File::create(LOGIN_FILE).unwrap_or_else(|e| {
 					panic!("Error in creating file: {:?}", e);
 				});
 
-				send_schedule_daily(ctx).await;
+				send_schedule_daily(&ctx).await;
 			} else {
 				sleep(Duration::from_secs(1));
 			}
@@ -165,6 +182,14 @@ async fn help(ctx: &Context, msg:&Message, args: Args, help_options: &'static He
 	Ok(())
 }
 
+#[hook]
+async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), CommandError>) {
+    //  Print out an error if it happened
+    if let Err(why) = error {
+        println!("Error in {}: {:?}", cmd_name, why);
+    }
+}
+
 pub async fn run() {
 	let token = env::var("DISCORD_TOKEN").expect("invalid token");
 	let http = Http::new_with_token(&token);
@@ -185,10 +210,12 @@ pub async fn run() {
 	};
 	let framework = StandardFramework::new()
 		.configure(|c| c
+			.delimiter(';')
 			.prefix("=")
 			.owners(owners))
-		.group(&GENERAL_GROUP)
-		.help(&HELP);
+			.after(after_hook)
+			.group(&GENERAL_GROUP)
+			.help(&HELP);
 
 	let mut client = Client::builder(token)
 		.event_handler(Handler)
@@ -206,7 +233,7 @@ pub async fn run() {
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 	msg.channel_id.send_message(&ctx.http, |m| {
 		m.embed(|e| e
-			.colour(0x03aaf9)
+			.colour(PRIMARY_COLOR)
 			.title("reply to command")
 			.field("test", "pong", false))
 	}).await?;
@@ -220,7 +247,7 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 async fn register(ctx: &Context, msg: &Message) -> CommandResult {
 	msg.author.dm(&ctx, |m| {
 		m.embed(|e| e
-			.colour(0x03aaf9)
+			.colour(PRIMARY_COLOR)
 			.field("Register", "Please enter your BINUS email and password, e.g. `=add [email] [password]`", false))
 	}).await?;
 	Ok(())
@@ -236,7 +263,7 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 	msg.author.dm(&ctx, |m| {
 		m.embed(|e| e
-			.colour(0x03aaf9)
+			.colour(PRIMARY_COLOR)
 			.field("Registering...", "Please wait a few seconds", false))
 	}).await?;
 
@@ -300,14 +327,14 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 			
 			msg.author.dm(&ctx, |m| {
 				m.embed(|e| e
-					.colour(0x03aaf9)
+					.colour(PRIMARY_COLOR)
 					.field("Account Registered", "Account successfully registered", false)
 			)}).await?;
 		},
 		Status::INVALID => {
 			msg.author.dm(&ctx, |m| {
 				m.embed(|e| e
-					.colour(0x03aaf9)
+					.colour(PRIMARY_COLOR)
 					.field("Account is not valid", "Wrong email or password", false))
 			}).await?;
 		}
@@ -329,14 +356,14 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 				m.embed(|e| e
 					.title("Today's Schedule")
 					.description(format!("{} Session(s)\n{}", class.schedule.len(), class))
-					.colour(0x03aaf9)
+					.colour(PRIMARY_COLOR)
 				)
 			}).await?;
 		} else {
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e
 					.title("Today's Schedule")
-					.colour(0x03aaf9)
+					.colour(PRIMARY_COLOR)
 					.field("Holiday!", "No classes/sessions for today", true)
 				)
 			}).await?;
@@ -344,7 +371,7 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 	} else {
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
-				.colour(0x03aaf9)
+				.colour(PRIMARY_COLOR)
 				.field("You're not registered", "please register first using `=register` command", false)
 			)
 		}).await?;
@@ -354,39 +381,64 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
+#[num_args(3)]
+#[aliases("resource", "d")]
+#[description("Get the sub topics and resources/article of the session")]
+#[usage("[subject name];[Class component];[Session number]")]
+#[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let course_name = args.single::<String>()?;
 	let class_component = args.single::<String>()?;
 	let session_number = args.single::<usize>()?;
+
 	let user_data = USER_DATA.lock().await;
 
-	
 	if user_data.contains_key(msg.author.id.as_u64()) {
 		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-		let class_id = &binusmaya_api.get_classes().await?
-			.classes.par_iter()
-			.find_any(|c| c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)).unwrap()
-			.class_id.clone();
 
-		let class_details = binusmaya_api.get_class_details(class_id.to_string()).await?;
+		let class = stream::iter(binusmaya_api.get_classes().await?.classes)
+			.filter(|c| future::ready(c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)))
+			.next().await;
 
-		if class_details.sessions.len() < session_number {
+		if let Some(c) = class {
+			let class_id = c.class_id;
+			let class_details = binusmaya_api.get_class_details(class_id.clone()).await.unwrap();
+	
+			if class_details.sessions.len() < session_number {
+				msg.channel_id.send_message(&ctx.http, |m| {
+					m.embed(|e| e
+						.colour(PRIMARY_COLOR)
+						.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
+					)
+				}).await.unwrap();
+			} else {
+				let session_id = &class_details.sessions[session_number - 1].id;
+				let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
+				msg.channel_id.send_message(&ctx.http, |m| {
+					m.embed(|e| e
+						.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
+						.description(format!("**Subtopics**\n{:#?}\n\n**Resources**\n{}", session_details.course_sub_topic, session_details.resources))
+						.colour(PRIMARY_COLOR)
+						.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+					)
+				}).await?;
+			}
+		} else {
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e
-					.colour(0x03aaf9)
-					.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
+					.colour(PRIMARY_COLOR)
+					.field(format!("subject named {} doesn't exists", course_name), "**Tips:** [subject name] and [class component] are case sensitive", false)
 				)
 			}).await?;
-		} else {
-			let session_details = binusmaya_api.get_resource(class_details.sessions[session_number - 1].id.clone()).await?;
-			msg.channel_id.send_message(&ctx.http, |m| {
-				m.embed(|e| e
-					.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
-					.colour(0x03aaf9)
-					.field("Subtopics", format!("{:#?}", session_details.course_sub_topic), false)
-				)
-			}).await.expect("s");
 		}
+
+	} else {
+		msg.channel_id.send_message(&ctx.http, |m| {
+			m.embed(|e| e
+				.colour(PRIMARY_COLOR)
+				.field("You're not registered", "please register first using `=register` command", false)
+			)
+		}).await?;
 	}
 
 	Ok(())
@@ -404,7 +456,7 @@ async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
 			m.embed(|e| e
 				.title("Class List")
 				.description(classes)
-				.colour(0x03aaf9)
+				.colour(PRIMARY_COLOR)
 			)
 		}).await?;
 	}
