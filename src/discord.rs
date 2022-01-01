@@ -26,7 +26,7 @@ use csv_async::{AsyncSerializer, AsyncDeserializer};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Local};
 use futures::{stream ,StreamExt, future};
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex};
 use serenity::{
     async_trait,
     model::prelude::*,
@@ -50,7 +50,7 @@ use serenity::framework::standard::{
 use crate::prelude::*;
 use crate::binusmaya::*;
 use std::env;
-use async_recursion::async_recursion;
+
 
 const USER_FILE: &str = "user_data.csv";
 const LOGIN_FILE: &str = "last_login.txt";
@@ -73,70 +73,55 @@ pub struct General;
 
 pub struct Handler;
 
-#[async_recursion]
 async fn send_schedule_daily(ctx: &Context) {
-	let metadata =  metadata(LOGIN_FILE).unwrap();
-
-	if let Ok(time) = metadata.modified() {
-		let last_login = DateTime::<Local>::from(time).date();
-		loop {
-			if last_login.succ() == chrono::offset::Local::now().date() {
-				stream::iter(USER_DATA.lock().await.clone().into_iter())
-					.map(|(user_id, user_auth)| {
+	loop {
+		let metadata =  metadata(LOGIN_FILE).unwrap();
+	
+		if let Ok(time) = metadata.modified() {
+			let last_login = DateTime::<Local>::from(time).date();
+			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
+				stream::iter(USER_DATA.lock().await.iter())
+					.for_each_concurrent(16, |(user_id, user_auth)| async move {
+						println!("yes");
 						let context = ctx.clone();
-
-						tokio::spawn(async move {
-							let binusmaya_api = BinusmayaAPI{token: user_auth};
-							let schedule = binusmaya_api.get_schedule().await.unwrap();
-							let channel_id = UserId(user_id).create_dm_channel(&context.http)
-								.await.unwrap().id;
-			
-							if let Some(classes) = schedule {
-								ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
-									m.embed(|e| e
-										.title("Today's Schedule")
-										.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
-										.colour(PRIMARY_COLOR)
-									)
-								}).await.unwrap();
-
-								stream::iter(classes.schedule)
-									.map(|s| {
-										s.custom_param.class_session_id
-									})
-									.for_each(|s| async {
-										binusmaya_api.update_student_progress(s).await.unwrap();
-									}).await;
-							} else {
-								ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
-									m.embed(|e| e
-										.title("Today's Schedule")
-										.colour(PRIMARY_COLOR)
-										.field("Holiday!", "No classes/sessions for today", true)
-									)
-								}).await.unwrap();
-							}
-						})
-					})
-					.buffer_unordered(PARALLEL_REQUESTS)
-					.for_each(|status| async move {
-						match status {
-							Ok(_) => {},
-							Err(e) => eprintln!("Error in child thread: {}", e)
+						let binusmaya_api = BinusmayaAPI{token: user_auth.to_string()};
+						let schedule = binusmaya_api.get_schedule().await.unwrap();
+						let channel_id = UserId(*user_id).create_dm_channel(&context.http)
+							.await.unwrap().id;
+		
+						if let Some(classes) = schedule {
+							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
+								m.embed(|e| e
+									.title("Today's Schedule")
+									.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
+									.colour(PRIMARY_COLOR)
+								)
+							}).await.unwrap();
+		
+							stream::iter(classes.schedule)
+								.for_each_concurrent(5, |s| async {
+									binusmaya_api.update_student_progress(s.custom_param.class_session_id).await.unwrap();
+								}).await;
+						} else {
+							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
+								m.embed(|e| e
+									.title("Today's Schedule")
+									.colour(PRIMARY_COLOR)
+									.field("Holiday!", "No classes/sessions for today", true)
+								)
+							}).await.unwrap();
 						}
 					}).await;
 
 				File::create(LOGIN_FILE).unwrap_or_else(|e| {
 					panic!("Error in creating file: {:?}", e);
 				});
-
-				send_schedule_daily(&ctx).await;
 			} else {
-				sleep(Duration::from_secs(1));
+				sleep(Duration::from_secs(86400)); // Sleep for one day
 			}
+		} else {
+			panic!("File metadata not supported in your platform");
 		}
-	} else {
-		panic!("File metadata not supported in your platform");
 	}
 }
 
@@ -157,6 +142,7 @@ impl EventHandler for Handler {
 			});
 		}
 
+		
 		let content = read_to_string(USER_FILE).expect("Something's wrong when reading a file");
 		let mut rdr = AsyncDeserializer::from_reader(content.as_bytes());
 		let mut records = rdr.deserialize::<UserRecord>();
@@ -164,12 +150,11 @@ impl EventHandler for Handler {
 			let record = record.unwrap();
 			USER_DATA.lock().await.insert(record.member_id, record.auth);
 		}
-
-		thread::spawn(|| async move {
+		
+		tokio::spawn(async move {
 			println!("{:?} is running", thread::current().id());
 			send_schedule_daily(&ctx).await;
 		});
-
 		println!("{} is ready", data_about_bot.user.name);
 	}
 }
@@ -255,8 +240,9 @@ async fn register(ctx: &Context, msg: &Message) -> CommandResult {
 
 #[command]
 #[only_in("dm")]
+#[description("Add BINUS account to discord bot")]
+#[usage("[email];[password]")]
 #[num_args(2)]
-#[help_available(false)]
 async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let email = args.single::<String>().unwrap();
 	let password = args.single::<String>().unwrap();
@@ -344,6 +330,7 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
+#[description("Get schedule")]
 async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 	let user_data = USER_DATA.lock().await;
 
