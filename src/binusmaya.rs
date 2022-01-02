@@ -368,7 +368,7 @@ impl BinusmayaAPI {
 		Ok(Some(academic_period))
 	}
 
-	pub async fn get_schedule(&self, date: String) -> Result<Option<Schedule>, reqwest::Error> {
+	pub async fn get_schedule(&self, date: &String) -> Result<Option<Schedule>, reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 		let mut headers = HeaderMap::new();
 		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);

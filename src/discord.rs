@@ -20,11 +20,11 @@ use std::{
 	}, 
 	io::Write, 
 	path::Path, 
-	time::Duration
+	ops::Add
 };
 use csv_async::{AsyncSerializer, AsyncDeserializer};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Duration};
 use futures::{stream ,StreamExt, future};
 use tokio::{sync::Mutex};
 use serenity::{
@@ -59,7 +59,8 @@ const LOGIN_FILE: &str = "last_login.txt";
 const PARALLEL_REQUESTS: usize = 4;
 const PRIMARY_COLOR: Colour = Colour::BLUE;
 lazy_static!{
-	static ref USER_DATA: Mutex<HashMap<u64, String>> = Mutex::new(HashMap::new());
+	static ref USER_DATA: Mutex<HashMap<u64, UserAuthInfo>> = Mutex::new(HashMap::new());
+	static ref CHROME_BINARY: Option<String> = None;
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -67,6 +68,11 @@ struct UserRecord {
 	member_id: u64,
 	auth: String,
 	last_registered: DateTime<Local>,
+}
+
+struct UserAuthInfo {
+	auth: String,
+	last_registered: DateTime<Local>
 }
 
 #[group]
@@ -83,11 +89,11 @@ async fn send_schedule_daily(ctx: &Context) {
 			let last_login = DateTime::<Local>::from(time).date();
 			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
 				stream::iter(USER_DATA.lock().await.iter())
-					.for_each_concurrent(16, |(user_id, user_auth)| async move {
+					.for_each_concurrent(16, |(user_id, user_auth_info)| async move {
 						println!("yes");
 						let context = ctx.clone();
-						let binusmaya_api = BinusmayaAPI{token: user_auth.to_string()};
-						let schedule = binusmaya_api.get_schedule(chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
+						let binusmaya_api = BinusmayaAPI{token: user_auth_info.auth.to_string()};
+						let schedule = binusmaya_api.get_schedule(&chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
 						let channel_id = UserId(*user_id).create_dm_channel(&context.http)
 							.await.unwrap().id;
 		
@@ -119,7 +125,7 @@ async fn send_schedule_daily(ctx: &Context) {
 					panic!("Error in creating file: {:?}", e);
 				});
 			} else {
-				sleep(Duration::from_secs(1)); // Sleep for one day
+				sleep(Duration::seconds(1).to_std().unwrap()); // Sleep for one day
 			}
 		} else {
 			panic!("File metadata not supported in your platform");
@@ -148,7 +154,7 @@ impl EventHandler for Handler {
 		let mut records = rdr.deserialize::<UserRecord>();
 		while let Some(record) = records.next().await {
 			let record = record.unwrap();
-			USER_DATA.lock().await.insert(record.member_id, record.auth);
+			USER_DATA.lock().await.insert(record.member_id, UserAuthInfo { auth: record.auth, last_registered: record.last_registered });
 		}
 		
 		tokio::spawn(async move {
@@ -176,40 +182,49 @@ async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), 
 }
 
 pub async fn run() {
-	let token = env::var("DISCORD_TOKEN").expect("invalid token");
-	let http = Http::new_with_token(&token);
-	let (owners, _) = match http.get_current_application_info().await {
-		Ok(info) => {
-			let mut owners = HashSet::new();
-			if let Some(team) = info.team {
-				owners.insert(team.owner_user_id);
-			} else {
-				owners.insert(info.owner.id);
+	let chrome_binary = env::args().nth(1);
+	if let Some(path) = chrome_binary {
+		if Path::new(&path).exists() {
+			let token = env::var("DISCORD_TOKEN").expect("invalid token");
+			let http = Http::new_with_token(&token);
+			let (owners, _) = match http.get_current_application_info().await {
+				Ok(info) => {
+					let mut owners = HashSet::new();
+					if let Some(team) = info.team {
+						owners.insert(team.owner_user_id);
+					} else {
+						owners.insert(info.owner.id);
+					}
+					match http.get_current_user().await {
+						Ok(bot_id) => (owners, bot_id.id),
+						Err(e) => panic!("Couldn't get bot id: {:?}", e),
+					}
+				},
+				Err(e) => panic!("Couldn't get app info: {:?}", e)
+			};
+			let framework = StandardFramework::new()
+				.configure(|c| c
+					.delimiter(';')
+					.prefix("=")
+					.owners(owners))
+					.after(after_hook)
+					.group(&GENERAL_GROUP)
+					.help(&HELP);
+		
+			let mut client = Client::builder(token)
+				.event_handler(Handler)
+				.framework(framework)
+				.await
+				.expect("Error in creating bot");
+		
+			if let Err(e) = client.start().await {
+				println!("An error has occured: {:?}", e);
 			}
-			match http.get_current_user().await {
-				Ok(bot_id) => (owners, bot_id.id),
-				Err(e) => panic!("Couldn't get bot id: {:?}", e),
-			}
-		},
-		Err(e) => panic!("Couldn't get app info: {:?}", e)
-	};
-	let framework = StandardFramework::new()
-		.configure(|c| c
-			.delimiter(';')
-			.prefix("=")
-			.owners(owners))
-			.after(after_hook)
-			.group(&GENERAL_GROUP)
-			.help(&HELP);
-
-	let mut client = Client::builder(token)
-		.event_handler(Handler)
-		.framework(framework)
-		.await
-		.expect("Error in creating bot");
-
-	if let Err(e) = client.start().await {
-		println!("An error has occured: {:?}", e);
+		} else {
+			panic!("Chrome binary path doesn't exists");
+		}
+	} else {
+		panic!("Please enter your chrome binary path");
 	}
 }
 
@@ -238,21 +253,7 @@ async fn register(ctx: &Context, msg: &Message) -> CommandResult {
 	Ok(())
 }
 
-#[command]
-#[only_in("dm")]
-#[description("Add BINUS account to discord bot")]
-#[usage("[email];[password]")]
-#[num_args(2)]
-async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let email = args.single::<String>().unwrap();
-	let password = args.single::<String>().unwrap();
-
-	msg.author.dm(&ctx, |m| {
-		m.embed(|e| e
-			.colour(PRIMARY_COLOR)
-			.field("Registering...", "Please wait a few seconds", false))
-	}).await?;
-
+async fn add_account(email: &String, password: &String, msg: &Message, ctx: &Context) -> CommandResult {
 	let proxy = BrowserMobProxy {host: "localhost", port: 8082, path: "./browsermob-proxy-2.1.4/bin/browsermob-proxy"};
     
     proxy.create_proxy().await?;
@@ -271,7 +272,7 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         no_proxy: None
     })?;
     caps.accept_ssl_certs(true)?;
-    caps.set_binary("/usr/bin/google-chrome")?;
+    caps.set_binary(CHROME_BINARY.as_ref().unwrap().as_str())?;
     caps.add_chrome_arg("--proxy-server=http://localhost:8083")?;
     caps.add_chrome_arg("--ignore-certificate-errors")?;
     caps.set_headless()?;
@@ -298,7 +299,7 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 				last_registered: Local::now()			
 			};
 
-			USER_DATA.lock().await.insert(user_record.member_id, user_record.auth.clone());
+			USER_DATA.lock().await.insert(user_record.member_id, UserAuthInfo{ auth: user_record.auth.clone(), last_registered: user_record.last_registered});
 
 			let mut wtr = AsyncSerializer::from_writer(vec![]);
 
@@ -332,6 +333,47 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 }
 
 #[command]
+#[only_in("dm")]
+#[description("Add BINUS account to discord bot")]
+#[usage("[email];[password]")]
+#[num_args(2)]
+async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+	let email = args.single::<String>().unwrap();
+	let password = args.single::<String>().unwrap();
+
+	if USER_DATA.lock().await.contains_key(msg.author.id.as_u64()){
+		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+		let now = chrono::offset::Local::now();
+		if jwt_exp < now {
+			msg.channel_id.send_message(&ctx, |m| {
+				m.embed(|e| e
+					.colour(PRIMARY_COLOR)
+					.field("Registering...", "Please wait a few seconds", false))
+			}).await?;
+
+			add_account(&email, &password, msg, ctx).await?;
+
+		} else {
+			msg.author.dm(&ctx, |m| {
+				m.embed(|e| e
+					.colour(PRIMARY_COLOR)
+					.field("You've already registered", format!("Please wait **{} days** to re-register your account", jwt_exp.signed_duration_since(now).num_days()), false))
+			}).await?;
+		}
+	} else {
+		msg.author.dm(&ctx, |m| {
+			m.embed(|e| e
+				.colour(PRIMARY_COLOR)
+				.field("Registering...", "Please wait a few seconds", false))
+		}).await?;
+
+		add_account(&email, &password, msg, ctx).await?;
+	}
+
+	Ok(())
+}
+
+#[command]
 #[description("Get schedule")]
 #[num_args(1)]
 #[description("Get the schedule of the given date")]
@@ -342,23 +384,34 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
-		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-		let schedule = binusmaya_api.get_schedule(date).await?;
-
-		if let Some(class) = schedule {
-			msg.channel_id.send_message(&ctx.http, |m| {
-				m.embed(|e| e
-					.title("Today's Schedule")
-					.description(format!("**{} Session(s)**\n{}", class.schedule.len(), class))
-					.colour(PRIMARY_COLOR)
-				)
-			}).await?;
+		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+		let now = chrono::offset::Local::now();
+		if jwt_exp < now {
+			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
+			let schedule = binusmaya_api.get_schedule(&date).await?;
+	
+			if let Some(class) = schedule {
+				msg.channel_id.send_message(&ctx.http, |m| {
+					m.embed(|e| e
+						.title(format!("Schedule for {}", date.clone()))
+						.description(format!("**{} Session(s)**\n{}", class.schedule.len(), class))
+						.colour(PRIMARY_COLOR)
+					)
+				}).await?;
+			} else {
+				msg.channel_id.send_message(&ctx.http, |m| {
+					m.embed(|e| e
+						.title("Today's Schedule")
+						.colour(PRIMARY_COLOR)
+						.field("Holiday!", "No classes/sessions for today", true)
+					)
+				}).await?;
+			}
 		} else {
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e
-					.title("Today's Schedule")
 					.colour(PRIMARY_COLOR)
-					.field("Holiday!", "No classes/sessions for today", true)
+					.field("Your bearer token has expired", "please re-register using `=add` command", false)
 				)
 			}).await?;
 		}
@@ -388,32 +441,43 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
-		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-
-		let class = stream::iter(binusmaya_api.get_classes().await?.classes)
-			.filter(|c| future::ready(c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)))
-			.next().await;
-
-		if let Some(c) = class {
-			let class_id = c.class_id;
-			let class_details = binusmaya_api.get_class_details(class_id.clone()).await.unwrap();
+		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+		let now = chrono::offset::Local::now();
+		if jwt_exp < now {
+			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
 	
-			if class_details.sessions.len() < session_number {
-				msg.channel_id.send_message(&ctx.http, |m| {
-					m.embed(|e| e
-						.colour(PRIMARY_COLOR)
-						.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
-					)
-				}).await.unwrap();
+			let class = stream::iter(binusmaya_api.get_classes().await?.classes)
+				.filter(|c| future::ready(c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)))
+				.next().await;
+	
+			if let Some(c) = class {
+				let class_id = c.class_id;
+				let class_details = binusmaya_api.get_class_details(class_id.clone()).await.unwrap();
+		
+				if class_details.sessions.len() < session_number {
+					msg.channel_id.send_message(&ctx.http, |m| {
+						m.embed(|e| e
+							.colour(PRIMARY_COLOR)
+							.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
+						)
+					}).await.unwrap();
+				} else {
+					let session_id = &class_details.sessions[session_number - 1].id;
+					let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
+					msg.channel_id.send_message(&ctx.http, |m| {
+						m.embed(|e| e
+							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
+							.description(format!("**Subtopics**\n{:#?}\n\n**Resources**\n{}", session_details.course_sub_topic, session_details.resources))
+							.colour(PRIMARY_COLOR)
+							.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+						)
+					}).await?;
+				}
 			} else {
-				let session_id = &class_details.sessions[session_number - 1].id;
-				let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
 				msg.channel_id.send_message(&ctx.http, |m| {
 					m.embed(|e| e
-						.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
-						.description(format!("**Subtopics**\n{:#?}\n\n**Resources**\n{}", session_details.course_sub_topic, session_details.resources))
 						.colour(PRIMARY_COLOR)
-						.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+						.field(format!("subject named {} doesn't exists", course_name), "**Tips:** [subject name] and [class component] are case sensitive", false)
 					)
 				}).await?;
 			}
@@ -421,11 +485,10 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e
 					.colour(PRIMARY_COLOR)
-					.field(format!("subject named {} doesn't exists", course_name), "**Tips:** [subject name] and [class component] are case sensitive", false)
+					.field("Your bearer token has expired", "please re-register using `=add` command", false)
 				)
 			}).await?;
-		}
-
+		}	
 	} else {
 		msg.channel_id.send_message(&ctx.http, |m| {
 			m.embed(|e| e
@@ -445,16 +508,27 @@ async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
-		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-		let classes = binusmaya_api.get_classes().await?;
-
-		msg.channel_id.send_message(&ctx.http, |m| {
-			m.embed(|e| e
-				.title("Class List")
-				.description(classes)
-				.colour(PRIMARY_COLOR)
-			)
-		}).await?;
+		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+		let now = chrono::offset::Local::now();
+		if jwt_exp < now {
+			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
+			let classes = binusmaya_api.get_classes().await?;
+	
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.title("Class List")
+					.description(classes)
+					.colour(PRIMARY_COLOR)
+				)
+			}).await?;
+		} else {
+			msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.colour(PRIMARY_COLOR)
+					.field("You're not registered", "please register first using `=register` command", false)
+				)
+			}).await?;
+		}
 	}
 	Ok(())
 }
