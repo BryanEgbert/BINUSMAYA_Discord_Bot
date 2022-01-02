@@ -54,6 +54,7 @@ impl BrowserMobProxy {
 	pub async fn new_har(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let proxy = self.get_proxy().await?;
+		println!("proxy: {:?}", proxy);
 
 		let res = client.put(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy))
 			.query(&[("captureHeaders", "true"), ("initialPageTitle", "newbinusmaya")])

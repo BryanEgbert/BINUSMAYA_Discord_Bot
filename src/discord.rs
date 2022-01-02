@@ -32,7 +32,7 @@ use serenity::{
     model::prelude::*,
     prelude::*,
 	http::Http,
-	utils::Colour, framework::standard::{macros::hook, CommandError}
+	utils::Colour,
 };
 use serenity::framework::standard::{
     StandardFramework,
@@ -41,13 +41,15 @@ use serenity::framework::standard::{
 	help_commands,
 	HelpOptions,
 	CommandGroup,
+	CommandError,
     macros::{
         command,
         group,
-		help
+		help,
+		hook
     },
 };
-use crate::prelude::*;
+use crate::third_party::*;
 use crate::binusmaya::*;
 use std::env;
 
@@ -85,7 +87,7 @@ async fn send_schedule_daily(ctx: &Context) {
 						println!("yes");
 						let context = ctx.clone();
 						let binusmaya_api = BinusmayaAPI{token: user_auth.to_string()};
-						let schedule = binusmaya_api.get_schedule().await.unwrap();
+						let schedule = binusmaya_api.get_schedule(chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
 						let channel_id = UserId(*user_id).create_dm_channel(&context.http)
 							.await.unwrap().id;
 		
@@ -117,7 +119,7 @@ async fn send_schedule_daily(ctx: &Context) {
 					panic!("Error in creating file: {:?}", e);
 				});
 			} else {
-				sleep(Duration::from_secs(86400)); // Sleep for one day
+				sleep(Duration::from_secs(1)); // Sleep for one day
 			}
 		} else {
 			panic!("File metadata not supported in your platform");
@@ -127,7 +129,6 @@ async fn send_schedule_daily(ctx: &Context) {
 
 #[async_trait]
 impl EventHandler for Handler {
-
 	async fn ready(&self, ctx: Context, data_about_bot: Ready) {
 
 		if !Path::new(USER_FILE).exists() {
@@ -141,7 +142,6 @@ impl EventHandler for Handler {
 				panic!("Error in creating file: {:?}", e);
 			});
 		}
-
 		
 		let content = read_to_string(USER_FILE).expect("Something's wrong when reading a file");
 		let mut rdr = AsyncDeserializer::from_reader(content.as_bytes());
@@ -298,6 +298,8 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 				last_registered: Local::now()			
 			};
 
+			USER_DATA.lock().await.insert(user_record.member_id, user_record.auth.clone());
+
 			let mut wtr = AsyncSerializer::from_writer(vec![]);
 
 			wtr.serialize(user_record).await?;
@@ -331,18 +333,23 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 #[command]
 #[description("Get schedule")]
-async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
+#[num_args(1)]
+#[description("Get the schedule of the given date")]
+#[usage("[YYYY-MM-DD]")]
+#[example("2022-01-05")]
+async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+	let date = args.single::<String>().unwrap();
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
 		let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().clone()};
-		let schedule = binusmaya_api.get_schedule().await?;
+		let schedule = binusmaya_api.get_schedule(date).await?;
 
 		if let Some(class) = schedule {
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e
 					.title("Today's Schedule")
-					.description(format!("{} Session(s)\n{}", class.schedule.len(), class))
+					.description(format!("**{} Session(s)**\n{}", class.schedule.len(), class))
 					.colour(PRIMARY_COLOR)
 				)
 			}).await?;
@@ -370,7 +377,7 @@ async fn schedule(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[num_args(3)]
 #[aliases("resource", "d")]
-#[description("Get the sub topics and resources/article of the session")]
+#[description("Get the subtopics and resources/article of the session")]
 #[usage("[subject name];[Class component];[Session number]")]
 #[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -432,6 +439,8 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 }
 
 #[command]
+#[aliases("c")]
+#[description("Get the list of classes")]
 async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
 	let user_data = USER_DATA.lock().await;
 

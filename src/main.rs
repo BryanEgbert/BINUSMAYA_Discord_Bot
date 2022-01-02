@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-pub mod prelude;
+pub mod third_party;
 pub mod discord;
 pub mod binusmaya;
 
