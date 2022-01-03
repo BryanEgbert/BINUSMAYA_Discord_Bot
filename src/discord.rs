@@ -89,7 +89,6 @@ async fn send_schedule_daily(ctx: &Context) {
 			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
 				stream::iter(USER_DATA.lock().await.iter())
 					.for_each_concurrent(8, |(user_id, user_auth_info)| async move {
-						println!("yes");
 						let context = ctx.clone();
 						let binusmaya_api = BinusmayaAPI{token: user_auth_info.auth.to_string()};
 						let schedule = binusmaya_api.get_schedule(&chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
@@ -157,7 +156,7 @@ impl EventHandler for Handler {
 			let record = record.unwrap();
 			USER_DATA.lock().await.insert(record.member_id, UserAuthInfo { auth: record.auth, last_registered: record.last_registered });
 		}
-		
+
 		tokio::spawn(async move {
 			println!("{:?} is running", thread::current().id());
 			send_schedule_daily(&ctx).await;
@@ -453,7 +452,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {
-		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+		let jwt_exp = user_data.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();
 		if jwt_exp > now {
 			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
@@ -464,7 +463,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 	
 			if let Some(c) = class {
 				let class_id = c.class_id;
-				let class_details = binusmaya_api.get_class_details(class_id.clone()).await.unwrap();
+				let class_details = binusmaya_api.get_class_details(class_id.clone()).await?;
 		
 				if class_details.sessions.len() < session_number {
 					msg.channel_id.send_message(&ctx.http, |m| {
