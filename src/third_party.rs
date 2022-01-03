@@ -4,10 +4,10 @@ use tokio;
 use serde_json::json;
 use serde::Deserialize;
 
+#[derive(Clone, Copy)]
 pub struct BrowserMobProxy {
 	pub host: &'static str,
 	pub port: u16,
-	pub path: &'static str
 }
 
 pub struct Selenium {
@@ -23,40 +23,40 @@ pub enum Status {
 }
 
 #[derive(Deserialize)]
-struct Port {
-	port: u32
+pub struct Port {
+	pub port: u32
 }
 
 #[derive(Deserialize)]
-struct ProxyList {
-	proxyList: Vec<Port>,
+pub struct ProxyList {
+	pub proxyList: Vec<Port>,
 }
 
 impl BrowserMobProxy {
 	pub async fn create_proxy(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let res = client.post(format!("http://{}:{}/proxy", self.host, self.port))
-			.query(&[("port", "8083"), ("trustAllServers", "true")])
+			.query(&[("trustAllServers", "true")])
 			.send()
 			.await?;
 
 		Ok(res.status())
 	}
 
-	pub async fn get_proxy(&self) -> Result<String, reqwest::Error> {
+	pub async fn get_proxy(&self) -> Result<ProxyList, reqwest::Error> {
 		let res: ProxyList = reqwest::get(format!("http://{}:{}/proxy", self.host, self.port)).await?
 			.json().await?;
 		
-		Ok(res.proxyList[0].port.to_string())
-
+		Ok(res)
 	}
 
 	pub async fn new_har(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let proxy = self.get_proxy().await?;
-		println!("proxy: {:?}", proxy);
+		let index = proxy.proxyList.len() - 1;
+		println!("proxy: {:?}", proxy.proxyList[index].port);
 
-		let res = client.put(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy))
+		let res = client.put(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy.proxyList[index].port.to_string()))
 			.query(&[("captureHeaders", "true"), ("initialPageTitle", "newbinusmaya")])
 			.send().await?;
 
@@ -65,9 +65,17 @@ impl BrowserMobProxy {
 
 	pub async fn get_har(&self) -> Result<serde_json::Value, reqwest::Error> {
 		let proxy = self.get_proxy().await?;
-		let res = reqwest::get(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy)).await?.json().await?;
+		let res = reqwest::get(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy.proxyList[proxy.proxyList.len() - 1].port)).await?.json().await?;
 
 		Ok(res)
+	}
+
+	pub async fn delete_proxy(&self) -> Result<reqwest::StatusCode, reqwest::Error> {
+		let proxy = self.get_proxy().await?;
+		let client = reqwest::Client::new();
+		let res = client.delete(format!("http://{}:{}/proxy/{}", self.host, self.port, proxy.proxyList[0].port)).send().await?;
+
+		Ok(res.status())
 	}
 }
 
@@ -108,7 +116,7 @@ impl Selenium {
 	}
 	
 	pub async fn run(&self) -> WebDriverResult<Status> {
-		let dev_tools = ChromeDevTools::new(self.driver.session());
+		let dev_tools = ChromeDevTools::new(&self.driver);
 		dev_tools.execute_cdp("Network.enable").await?;
 		dev_tools.execute_cdp_with_params(
 			"Network.setBlockedURLs", 
@@ -120,7 +128,7 @@ impl Selenium {
 	
 		let status = Selenium::microsoft_login(&self).await?;
 
-		tokio::time::sleep(Duration::from_millis(5000)).await;
+		tokio::time::sleep(Duration::from_millis(10000)).await;
 
 		Ok(status)
 	}
