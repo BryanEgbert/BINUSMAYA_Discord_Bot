@@ -9,7 +9,7 @@ use std::{
 		self, 
 		sleep
 	}, 
-	path::Path
+	path::Path, sync::Arc
 };
 use csv_async::AsyncReaderBuilder;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ use serenity::{
     async_trait,
     model::prelude::*,
     prelude::*,
-	http::Http,
+	http::Http, client::bridge::gateway::ShardManager,
 };
 use serenity::framework::standard::{
     StandardFramework,
@@ -68,6 +68,12 @@ pub struct UserRecord {
 pub struct UserAuthInfo {
 	pub auth: String,
 	pub last_registered: DateTime<Local>
+}
+
+pub struct ShardManagerContainer;
+
+impl TypeMapKey for ShardManagerContainer {
+	type Value = Arc<Mutex<ShardManager>>;
 }
 
 #[group]
@@ -211,6 +217,12 @@ pub async fn run() {
 		.framework(framework)
 		.await
 		.expect("Error in creating bot");
+
+	{
+			
+		let mut data = client.data.write().await;
+		data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+	}
 
 	if let Err(e) = client.start().await {
 		println!("An error has occured: {:?}", e);

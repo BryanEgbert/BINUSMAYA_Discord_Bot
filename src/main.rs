@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![allow(dead_code)]
 pub mod third_party;
 pub mod discord;
 pub mod binusmaya;
