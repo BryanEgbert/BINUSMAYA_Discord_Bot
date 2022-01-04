@@ -3,7 +3,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, REFERER,
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AcademicPeriod {
 	academic_period: String,
@@ -60,14 +60,14 @@ pub struct SchedulePayload {
 	role_activity: Vec<RoleActivity>
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleCategories {
 	name: String,
 	roles: Vec<RoleCategory>
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserProfile {
 	user_id: String,
@@ -132,7 +132,7 @@ impl fmt::Display for Schedule {
 	}
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClassSessionProgress {
 	completed: u8,
@@ -140,7 +140,7 @@ pub struct ClassSessionProgress {
 	not_started: u8
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Lecturer {
 	id: String,
@@ -419,12 +419,18 @@ impl BinusmayaAPI {
 		let mut headers = HeaderMap::new();
 		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
 
-		let client = reqwest::Client::new();
-		let classes = client
+		let client = reqwest::Client::builder()
+			.connection_verbose(true)
+			.build()?;
+		let res = client
 			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Class/Active/Student")
 			.headers(headers)
-			.send().await?
-			.json::<ClassVec>().await.expect("Something's wrong when parsing");
+			.send().await?;
+
+		if res.status() != reqwest::StatusCode::OK {
+			panic!("status: {}\n{}", res.status(), res.text().await?);
+		}
+		let classes = res.json::<ClassVec>().await.expect("Something's wrong when parsing");
 
 		Ok(classes)
 	}
@@ -435,11 +441,13 @@ impl BinusmayaAPI {
 		let mut headers = HeaderMap::new();
 		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
 
-		let client = reqwest::Client::new();
+		let client = reqwest::Client::builder()
+			.connection_verbose(true)
+			.build()?;
 		let response = client
 			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Class/{}/Student", class_id))
 			.headers(headers)
-			.send().await?
+			.send().await.expect("something's wrong")
 			.json::<ClassDetails>().await.expect("Something's wrong when parsing response");
 
 		Ok(response)

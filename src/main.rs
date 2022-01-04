@@ -2,6 +2,8 @@
 pub mod third_party;
 pub mod discord;
 pub mod binusmaya;
+pub mod commands;
+pub mod consts;
 
 #[macro_use]
 extern crate lazy_static;

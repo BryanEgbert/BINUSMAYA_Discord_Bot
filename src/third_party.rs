@@ -54,7 +54,6 @@ impl BrowserMobProxy {
 		let client = reqwest::Client::new();
 		let proxy = self.get_proxy().await?;
 		let index = proxy.proxyList.len() - 1;
-		println!("proxy: {:?}", proxy.proxyList[index].port);
 
 		let res = client.put(format!("http://{}:{}/proxy/{}/har", self.host, self.port, proxy.proxyList[index].port.to_string()))
 			.query(&[("captureHeaders", "true"), ("initialPageTitle", "newbinusmaya")])
