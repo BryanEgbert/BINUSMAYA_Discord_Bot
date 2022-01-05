@@ -108,7 +108,12 @@ async fn send_schedule_daily(ctx: &Context) {
 		
 							stream::iter(classes.schedule)
 								.for_each_concurrent(8, |s| async {
-									binusmaya_api.update_student_progress(s.custom_param.class_session_id).await.unwrap();
+									let class_session = binusmaya_api.get_resource(s.custom_param.class_session_id).await.unwrap();
+									for resource in class_session.resources.resources {
+										if !resource.resource_type.eq("Virtual Class") || !resource.resource_type.eq("Forum") {
+											binusmaya_api.update_student_progress(&resource.id).await.unwrap();
+										}
+									}
 								}).await;
 						} else {
 							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
@@ -125,7 +130,7 @@ async fn send_schedule_daily(ctx: &Context) {
 					panic!("Error in creating file: {:?}", e);
 				});
 			} else {
-				sleep(Duration::seconds(1).to_std().unwrap()); // Sleep for one day
+				sleep(Duration::seconds(1).to_std().unwrap());
 			}
 		} else {
 			panic!("File metadata not supported in your platform");

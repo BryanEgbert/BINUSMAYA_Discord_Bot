@@ -156,7 +156,7 @@ pub struct Resource {
 	pub android_redirect_url: Option<String>,
 	pub assessment_type: Option<String>,
 	pub due_date: String,
-	pub duration: String,
+	pub duration: Option<String>,
 	pub id: String,
 	pub index: String,
 	pub ios_redirect_url: Option<String>,
@@ -180,15 +180,22 @@ pub struct Resource {
 #[derive(Deserialize, Debug)]
 #[serde(transparent)]
 pub struct ResourceList {
-	resources: Vec<Resource>
+	pub resources: Vec<Resource>
 }
 
 impl fmt::Display for ResourceList {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for resource in &self.resources.clone() {
+			let duration = {
+				if let Some(i) = resource.duration.clone() {
+					i.parse::<u32>().unwrap() / 60
+				} else {
+					0
+				}
+			};
 			write!(f, "> Name: **{}**\n> Duration: **{} min**\n> Type: **{}**\n\n", 
 				resource.name, 
-				resource.duration.parse::<u32>().unwrap() / 60,
+				duration,
 				resource.resource_type
 			)?;
 		}
@@ -453,7 +460,7 @@ impl BinusmayaAPI {
 		Ok(response)
 	}
 
-	pub async fn update_student_progress(&self, resource_id: String) -> Result<reqwest::StatusCode, reqwest::Error> {
+	pub async fn update_student_progress(&self, resource_id: &String) -> Result<reqwest::StatusCode, reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 
 		let mut headers = HeaderMap::new();
@@ -463,7 +470,7 @@ impl BinusmayaAPI {
 		let response = client
 			.post("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/StudentProgress")
 			.headers(headers)
-			.json::<StudentProgressPayload>(&StudentProgressPayload{resource_id, status: 2})
+			.json::<StudentProgressPayload>(&StudentProgressPayload{resource_id: resource_id.to_string(), status: 2})
 			.send().await.expect("Something's wrong when sending request");
 
 		Ok(response.status())
