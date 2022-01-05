@@ -13,11 +13,9 @@ Cargo.lock
 # Added by cargo
 
 /target
-browsermob-proxy-2.1.4/
 driver/
 *.json
 *.log
-chromedriver
 *.csv
 *.txt
 *.log
