@@ -1,1 +1,1 @@
-web: ./target/release/BINUSMAYA_Discord_Bot
+worker: cargo run ./target/release/BINUSMAYA_Discord_Bot
