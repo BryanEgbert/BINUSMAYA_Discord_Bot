@@ -1,5 +1,6 @@
 # BINUSMAYA_Discord_Bot
-Discord bot for BINUSMAYA as a student from BINUS University
+Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University  
+**This is not an official bot and is made for assisting students in BINUS University**
 
 ## Features
 - Get schedule
