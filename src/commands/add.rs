@@ -33,7 +33,7 @@ async fn launch_selenium(email: String, password: String, proxy: BrowserMobProxy
         no_proxy: None
     })?;
     caps.accept_ssl_certs(true)?;
-    caps.set_binary(CHROME_BINARY.lock().await.clone().unwrap().as_str())?;
+    caps.set_binary(CHROME_BINARY.lock().await.clone().as_str())?;
     caps.add_chrome_arg("--proxy-server=http://localhost:8083")?;
     caps.add_chrome_arg("--ignore-certificate-errors")?;
     caps.set_headless()?;

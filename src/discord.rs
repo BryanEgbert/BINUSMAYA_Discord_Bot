@@ -48,7 +48,6 @@ use crate::{
 	consts::{
 		PRIMARY_COLOR, 
 		USER_DATA, 
-		CHROME_BINARY
 	}, 
 	binusmaya::*
 };
@@ -190,7 +189,6 @@ async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), 
 }
 
 pub async fn run() {
-	*CHROME_BINARY.lock().await = env::args().nth(1);
 	let token = env::var("DISCORD_TOKEN").expect("invalid token");
 	let http = Http::new_with_token(&token);
 	let (owners, _) = match http.get_current_application_info().await {
