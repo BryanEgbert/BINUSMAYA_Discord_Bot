@@ -101,7 +101,7 @@ async fn send_schedule_daily(ctx: &Context) {
 							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
 								m.embed(|e| e
 									.title("Today's Schedule")
-									.description(format!("{} Sessions\n{}For more information about the topics/resources of the session, use `=details` command", classes.schedule.len(), classes))
+									.description(format!("{} Sessions\n{}For more information about the topics, resources of the session and to get the link of the class, use `=details` command", classes.schedule.len(), classes))
 									.colour(PRIMARY_COLOR)
 								)
 							}).await.unwrap();
@@ -110,7 +110,7 @@ async fn send_schedule_daily(ctx: &Context) {
 								.for_each_concurrent(8, |s| async {
 									let class_session = binusmaya_api.get_resource(s.custom_param.class_session_id).await.unwrap();
 									for resource in class_session.resources.resources {
-										if !resource.resource_type.eq("Virtual Class") || !resource.resource_type.eq("Forum") {
+										if !resource.resource_type.eq("Virtual Class") && !resource.resource_type.eq("Forum") && !resource.resource_type.eq("Assignment") {
 											binusmaya_api.update_student_progress(&resource.id).await.unwrap();
 										}
 									}

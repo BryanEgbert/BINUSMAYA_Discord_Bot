@@ -188,9 +188,9 @@ impl fmt::Display for ResourceList {
 		for resource in &self.resources.clone() {
 			let duration = {
 				if let Some(i) = resource.duration.clone() {
-					i.parse::<u32>().unwrap() / 60
+					(i.parse::<u32>().unwrap() / 60).to_string()
 				} else {
-					0
+					"?".to_string()
 				}
 			};
 			write!(f, "> Name: **{}**\n> Duration: **{} min**\n> Type: **{}**\n\n", 
@@ -204,12 +204,27 @@ impl fmt::Display for ResourceList {
 	}
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(transparent)]
+pub struct SubTopics {
+	subtopics: Vec<String> 
+}
+
+impl fmt::Display for SubTopics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for topic in &self.subtopics {
+			write!(f, "- {}\n", topic)?;
+		}
+        Ok(())
+    }
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionDetails {
 	pub class_delivery_mode: String,
 	pub class_session_progress: ClassSessionProgress,
-	pub course_sub_topic: Vec<String>,
+	pub course_sub_topic: SubTopics,
 	pub date_end: String,
 	pub date_start: String,
 	pub delivery_mode: String,
