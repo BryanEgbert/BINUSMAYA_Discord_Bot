@@ -16,7 +16,7 @@ Discord bot for BINUSMAYA as a student from BINUS University
 
 ## How To Launch
 Executable file:  
-`[folder-path-to-app]/BINUSMAYA_Discord_Bot [chrome_binary_path]`
+`[folder-path-to-app]/BINUSMAYA_Discord_Bot [chrome_binary_path]`  
 For developer:  
 `cargo run [chrome_binary_path]`
 
