@@ -1,4 +1,4 @@
-[![License: GPL v3](https://img.shields.io/github/license/BryanEgbert/Binusmaya_Discord_Bot.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 # BINUSMAYA_Discord_Bot
 Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University
 
