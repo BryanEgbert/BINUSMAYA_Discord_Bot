@@ -11,7 +11,7 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 #[command]
 #[num_args(3)]
 #[aliases("resource", "d")]
-#[description("Get the subtopics and resources/article of the session")]
+#[description("Get the link of the class and get the subtopics and resources of the session")]
 #[usage("[subject name];[Class component];[Session number]")]
 #[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
@@ -48,7 +48,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 					msg.channel_id.send_message(&ctx.http, |m| {
 						m.embed(|e| e
 							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
-							.description(format!("**Subtopics**\n{:#?}\n\n**Resources**\n{}", session_details.course_sub_topic, session_details.resources))
+							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap(), session_details.course_sub_topic, session_details.resources))
 							.colour(PRIMARY_COLOR)
 							.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
 						)
