@@ -1,6 +1,8 @@
+[![License: GPL v3](https://img.shields.io/github/license/BryanEgbert/Binusmaya_Discord_Bot.svg)](https://www.gnu.org/licenses/gpl-3.0)
 # BINUSMAYA_Discord_Bot
-Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University  
-**This is not an official bot and is made for assisting students in BINUS University**
+Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University
+
+:warning:**This is not an official bot and is made for assisting students in BINUS University**
 
 ## Features
 - Get schedule
@@ -13,13 +15,26 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - [Chrome driver](https://chromedriver.chromium.org/downloads)
 - [browsermob proxy v.2.1.4](http://bmp.lightbody.net) with [Java 11](https://www.oracle.com/java/technologies/downloads/#java11)
 
-**Make sure the apps mentioned above is in the same folder with the application**
+:heavy_exclamation_mark:**Make sure the apps mentioned above is in the same folder with the application**
+
+## Discord Bot Info
+prefix: `=`  
+`=help` to get command list  
+`=help [command]` to get command info
 
 ## How To Launch
-Executable file:  
-`[folder-path-to-app]/BINUSMAYA_Discord_Bot [chrome_binary_path]`  
+Executable file:
+```sh
+$ cd [path-to-app]
+$ ./BINUSMAYA_Discord_Bot [chrome_binary_path]
+```
 For developer:  
-`cargo run [chrome_binary_path]`
+You can fork this project and write 
+```sh
+$ cargo run [chrome_binary_path]
+```
+
+:heavy_exclamation_mark:**IMPORTANT:** Make sure you use forward slash instead of backward slash to set the chrome binary path, even on windows
 
 ## License
 [GPL-3.0 License](LICENSE)
