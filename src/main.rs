@@ -10,13 +10,12 @@ pub mod consts;
 extern crate lazy_static;
 
 use discord::*;
-use std::{process::{Command, abort}, env, path::Path};
+use std::process::Command;
 
 
 
 #[tokio::main]
 async fn main() {
-
     Command::new("./chromedriver")
         .arg("--port=4444")
         .spawn()
