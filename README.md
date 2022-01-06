@@ -9,7 +9,7 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - Get schedule
 - Get session resources
 - Get list of classes from your major
-- Send daily notification on the schedule at 00:00
+- Send daily notification on the schedule at 00:00 GMT
 - Update student progress for today's session (VC, Forum, and assignments will not be updated)
 
 ## Third party Apps Used
