@@ -161,8 +161,6 @@ impl EventHandler for Handler {
 			USER_DATA.lock().await.insert(record.member_id, UserAuthInfo { auth: record.auth, last_registered: record.last_registered });
 		}
 
-		println!("{:?}", USER_DATA.lock().await);
-
 		tokio::spawn(async move {
 			println!("{:?} is running", thread::current().id());
 			send_schedule_daily(&ctx).await;
