@@ -128,7 +128,6 @@ async fn send_schedule_daily(ctx: &Context) {
 				});
 			} else {
 				sleep(Duration::seconds(1).to_std().unwrap());
-				println!("now: {}\nlast login: {}\ncondition met: {}", &chrono::offset::Local::now().date(), last_login, last_login.succ().eq(&chrono::offset::Local::now().date()));
 			}
 		} else {
 			panic!("File metadata not supported in your platform");
