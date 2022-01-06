@@ -9,7 +9,8 @@ license = "GPL-3.0"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["json"]}
-tokio = { version = "1" }
+tokio = { version = "1.15", features = ["full"] }
+tokio-util = { version = "0.6", features = ["codec"] }
 thirtyfour = "0.28"
 serde_json = "1.0.73"
 serde = "1.0.132"
