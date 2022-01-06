@@ -85,6 +85,7 @@ async fn send_schedule_daily(ctx: &Context) {
 		if let Ok(time) = metadata.modified() {
 			let last_login = DateTime::<Local>::from(time).date();
 			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
+				println!("Sending schedule");
 				stream::iter(USER_DATA.lock().await.iter())
 					.for_each_concurrent(8, |(user_id, user_auth_info)| async move {
 						let context = ctx.clone();
@@ -127,6 +128,7 @@ async fn send_schedule_daily(ctx: &Context) {
 				});
 			} else {
 				sleep(Duration::seconds(1).to_std().unwrap());
+				println!("now: {}\nlast login: {}", &chrono::offset::Local::now().date(), last_login);
 			}
 		} else {
 			panic!("File metadata not supported in your platform");
@@ -159,6 +161,8 @@ impl EventHandler for Handler {
 			let record = record.unwrap();
 			USER_DATA.lock().await.insert(record.member_id, UserAuthInfo { auth: record.auth, last_registered: record.last_registered });
 		}
+
+		println!("{:?}", USER_DATA.lock().await);
 
 		tokio::spawn(async move {
 			println!("{:?} is running", thread::current().id());
