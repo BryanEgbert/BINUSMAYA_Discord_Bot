@@ -1,5 +1,5 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
-![](https://heroku-status-badges.herokuapp.com/binusmaya-discord-bot)
+[![Heroku](https://heroku-badge.herokuapp.com/?app=heroku-badge&style=flat)](https://heroku-badge.herokuapp.com/projects.html)
 # BINUSMAYA_Discord_Bot
 Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University
 
@@ -26,18 +26,12 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - Most commands can be run in DM and guild
 
 ## How To Launch
-Executable file:
-```sh
-$ cd [path-to-app]
-$ ./BINUSMAYA_Discord_Bot [chrome_binary_path]
-```
-For developer:  
 You can fork this project and write 
 ```sh
-$ cargo run [chrome_binary_path]
+$ export DROPBOX_TOKEN=[dropbox token]
+$ export GOOGLE_CHROME_SHIM=[chrome binary path]
+$ cargo run
 ```
-
-:heavy_exclamation_mark:**IMPORTANT:** Make sure you use forward slash instead of backward slash to set the chrome binary path, even on windows
 
 ## License
 [GPL-3.0 License](LICENSE)
