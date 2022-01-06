@@ -10,8 +10,9 @@ use serenity::prelude::*;
 use thirtyfour::{DesiredCapabilities, Proxy, Capabilities, WebDriver};
 use thirtyfour::error::WebDriverError;
 
-use crate::consts::CHROME_BINARY;
+use crate::consts::{CHROME_BINARY, USER_FILE};
 use crate::discord::{UserRecord, UserAuthInfo};
+use crate::dropbox_api;
 use crate::third_party::{BrowserMobProxy, Status, Selenium};
 use crate::{consts::{PRIMARY_COLOR, USER_DATA}};
 
@@ -89,6 +90,9 @@ async fn add_account(email: String, password: String, msg: &Message, ctx: &Conte
 				if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().await?).unwrap()) {
 					eprintln!("Error when writing to a file: {}", err);
 				}
+
+				let res = dropbox_api::upload_file(USER_FILE.to_string()).await?;
+				println!("File upload status code: {}", res);
 				
 				msg.author.dm(&ctx, |m| {
 					m.embed(|e| e

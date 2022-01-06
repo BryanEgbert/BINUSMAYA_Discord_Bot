@@ -47,14 +47,11 @@ use crate::{
 	}, 
 	consts::{
 		PRIMARY_COLOR, 
-		USER_DATA, 
+		USER_DATA, LOGIN_FILE, USER_FILE, 
 	}, 
 	binusmaya::*
 };
 use std::env;
-
-const USER_FILE: &str = "user_data.csv";
-const LOGIN_FILE: &str = "last_login.txt";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UserRecord {
