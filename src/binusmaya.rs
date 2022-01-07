@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, NaiveDate};
+use chrono::{NaiveDateTime, NaiveDate, Local, TimeZone};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, REFERER, ORIGIN, USER_AGENT, HOST, AUTHORIZATION};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -302,6 +302,98 @@ impl fmt::Display for ClassVec {
 	}
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimpleLecturer {
+	id: String,
+	name: String,
+	picture_url: String
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimpleResource {
+	duration: Option<String>,
+	jumlah: Option<String>,
+	r#type: Option<String>
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OngoingClass {
+	#[serde(skip_deserializing)]
+	academic_career_desc: String,
+	#[serde(skip_deserializing)]
+	class_campus_name: String,
+	class_code: String,
+	class_delivery_mode: String,
+	class_id: String,
+	#[serde(skip_deserializing)]
+	class_room_number: Option<String>,
+	#[serde(skip_deserializing)]
+	course_code: String,
+	course_component: String,
+	course_id: String,
+	course_name: String,
+	date_end: String,
+	date_start: String,
+	delivery_mode: String,
+	#[serde(skip_deserializing)]
+	delivery_mode_desc: String,
+	id: String,
+	#[serde(skip_deserializing)]
+	institution_desc: String,
+	#[serde(skip_deserializing)]
+	is_ended: bool,
+	#[serde(skip_deserializing)]
+	lecturers: Vec<SimpleLecturer>,
+	meeting_start: String,
+	#[serde(skip_deserializing)]
+	resource_id: Option<String>,
+
+	#[serde(skip_deserializing)]
+	resources: Vec<Option<SimpleResource>>,
+	#[serde(skip_deserializing)]
+	session_id: String,
+	session_number: u8,
+	session_progress: u8,
+	#[serde(skip_deserializing)]
+	url: Option<String>
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(transparent)]
+pub struct OngoingClasses {
+	pub ongoing_classes: Vec<OngoingClass>
+}
+
+impl fmt::Display for OngoingClasses {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for ongoing_class in &self.ongoing_classes{
+			let now = chrono::offset::Local::now();
+			let end_date = Local.from_local_datetime(
+				&NaiveDateTime::parse_from_str(ongoing_class.date_end.as_str(), "%FT%X").unwrap()).unwrap();
+			let time_left = end_date - now;
+			write!(f, "> Class Code: **{}**\n> Course Name: **{}**\n> Time Left: **{}d**\n> Session: **{}**\n> Session Progress: **{}%**\n> Delivery Mode: **{}**\n\n",
+				ongoing_class.class_code, 
+				ongoing_class.course_name, 
+				time_left.num_days(), 
+				ongoing_class.session_number, 
+				ongoing_class.session_progress, 
+				ongoing_class.delivery_mode
+			)?;
+		}
+		Ok(())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OngoingClassResponse {
+	pub data: OngoingClasses,
+	pub is_has_upcoming_class: bool
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StudentProgressPayload {
@@ -365,7 +457,7 @@ impl BinusmayaAPI {
 		headers.insert(HeaderName::from_static("roid"), HeaderValue::from_str(user_profile.role_categories[0].roles[0].role_organization_id.as_str()).unwrap());
 		headers.insert(HeaderName::from_static("roleid"), HeaderValue::from_str(user_profile.role_categories[0].roles[0].role_id.as_str()).unwrap());
 		headers.insert(HeaderName::from_static("rolename"), HeaderValue::from_static("Student"));
-		headers.insert(HeaderName::from_static("instituion"), HeaderValue::from_static("BNS01"));
+		headers.insert(HeaderName::from_static("institution"), HeaderValue::from_static("BNS01"));
 		headers.insert(HeaderName::from_static("academiccareer"), HeaderValue::from_static("RS1"));
 
 		headers
@@ -489,5 +581,22 @@ impl BinusmayaAPI {
 			.send().await.expect("Something's wrong when sending request");
 
 		Ok(response.status())
+	}
+
+	pub async fn get_ongoing_sessions(&self) -> Result<OngoingClassResponse, reqwest::Error> {
+		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
+
+		let mut headers = HeaderMap::new();
+		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+
+		let client = reqwest::Client::new();
+
+		let res = client
+			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Ongoing/student")
+			.headers(headers)
+			.send().await.expect("something's wrong when sending request")
+			.json::<OngoingClassResponse>().await.expect("Something's wrong when parsing response");
+
+		Ok(res)
 	}
 }

@@ -43,7 +43,8 @@ use crate::{
 		classes::*,
 		details::*,
 		schedule::*,
-		add::*
+		add::*,
+		ongoing::*,
 	}, 
 	consts::{
 		PRIMARY_COLOR, 
@@ -77,7 +78,7 @@ impl TypeMapKey for ShardManagerContainer {
 pub struct General;
 
 #[group]
-#[commands(schedule, details, classes)]
+#[commands(schedule, details, classes, ongoing)]
 pub struct Binus;
 
 pub struct Handler;
