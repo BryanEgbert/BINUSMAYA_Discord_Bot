@@ -147,12 +147,14 @@ pub struct Schedule {
 impl fmt::Display for Schedule {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for class in &self.schedule {
-			write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n\n", 
+			write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n", 
 				class.title, class.content.clone(), 
 				NaiveDateTime::parse_from_str(class.date_start.as_str(), "%FT%X").unwrap(), 
 				NaiveDateTime::parse_from_str(class.date_end.as_str(), "%FT%X").unwrap(), 
 				class.custom_param.session_number, 
-				class.class_delivery_mode
+				class.class_delivery_mode,
+				class.custom_param.class_id,
+				class.custom_param.class_session_id
 			)?;
 		}
 
@@ -562,13 +564,15 @@ impl fmt::Display for UpcomingClass {
 		&NaiveDateTime::parse_from_str(self.date_start.as_str(), "%FT%X").unwrap()
 	).unwrap();
 		let time_start = start_date - now;
-        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n\n",
+        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}\n",
 			self.join_url, 
 			self.course_component, 
 			self.course_name, 
 			time_start.num_days(), 
 			self.session_number, 
-			self.delivery_mode
+			self.delivery_mode,
+			self.class_id,
+			self.session_id
 		)?;
 		Ok(())
     }
