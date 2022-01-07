@@ -63,6 +63,7 @@ pub struct SchedulePayload {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleCategories {
+	#[serde(skip_deserializing)]
 	name: String,
 	roles: Vec<RoleCategory>
 }
@@ -70,12 +71,19 @@ pub struct RoleCategories {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserProfile {
+	#[serde(skip_deserializing)]
 	user_id: String,
+	#[serde(skip_deserializing)]
 	full_name: String,
+	#[serde(skip_deserializing)]
 	person_code: String,
+	#[serde(skip_deserializing)]
 	email: String,
+	#[serde(skip_deserializing)]
 	user_picture_url: String,
+	#[serde(skip_deserializing)]
 	xP_point: f32,
+	#[serde(skip_deserializing)]
 	category_list: Vec<String>,
 	role_categories: Vec<RoleCategories>,
 }
@@ -86,6 +94,8 @@ pub struct CustomParam {
 	pub class_id: String,
 	pub class_session_id: String,
 	pub session_number: u32,
+
+	#[serde(skip_deserializing)]
 	pub class_session_content_id: Option<String>
 }
 
@@ -96,15 +106,31 @@ pub struct ScheduleDetails {
 	pub date_end: String,
 	pub title: String,
 	pub content: String,
+
+	#[serde(skip_deserializing)]
 	pub location: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub location_value: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub schedule_type: String,
 	pub custom_param: CustomParam,
 	pub class_delivery_mode: String,
+
+	#[serde(skip_deserializing)]
 	pub delivery_mode: String,
+
+	#[serde(skip_deserializing)]
 	pub delivery_mode_desc: String,
+
+	#[serde(skip_deserializing)]
 	pub academic_career_desc: String,
+
+	#[serde(skip_deserializing)]
 	pub institution_desc: String,
+
+	#[serde(skip_deserializing)]
 	pub organization_role_id: String
 }
 
@@ -113,6 +139,8 @@ pub struct ScheduleDetails {
 pub struct Schedule {
 	#[serde(rename(deserialize = "Schedule"))]
 	pub schedule: Vec<ScheduleDetails>,
+	
+	#[serde(skip_deserializing)]
 	pub date_start: String
 }
 
@@ -135,43 +163,83 @@ impl fmt::Display for Schedule {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClassSessionProgress {
+	#[serde(skip_deserializing)]
 	completed: u8,
+	#[serde(skip_deserializing)]
 	in_progress: u8,
+	#[serde(skip_deserializing)]
 	not_started: u8
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Lecturer {
+	#[serde(skip_deserializing)]
 	id: String,
+	#[serde(skip_deserializing)]
 	name: String,
+	#[serde(skip_deserializing)]
 	picture_url: String,
+	#[serde(skip_deserializing)]
 	role: String,
+	#[serde(skip_deserializing)]
 	user_code: String
 }
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
+	#[serde(skip_deserializing)]
 	pub android_redirect_url: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub assessment_type: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub due_date: String,
 	pub duration: Option<String>,
 	pub id: String,
+
+	#[serde(skip_deserializing)]
 	pub index: String,
+
+	#[serde(skip_deserializing)]
 	pub ios_redirect_url: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub is_open: bool,
+
+	#[serde(skip_deserializing)]
 	pub is_overdue: bool,
+
+	#[serde(skip_deserializing)]
 	pub last_updated_date: String,
+
+	#[serde(skip_deserializing)]
 	pub name: String,
+
+	#[serde(skip_deserializing)]
 	pub progress_stamp: u8,
+
+	#[serde(skip_deserializing)]
 	pub progress_status: u8,
+
+	#[serde(skip_deserializing)]
 	pub resource_last_updated_date: String,
+
+	#[serde(skip_deserializing)]
 	pub resource_status: String,
 	pub resource_type: String,
+
+	#[serde(skip_deserializing)]
 	pub thumbnail: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub times_accessed: u8,
+
+	#[serde(skip_deserializing)]
 	pub token: Option<String>,
+
 	#[serde(rename(deserialize = "type"))]
 	pub material_type: Option<String>,
 	pub url: Option<String>
@@ -222,24 +290,39 @@ impl fmt::Display for SubTopics {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionDetails {
+	#[serde(skip_deserializing)]
 	pub class_delivery_mode: String,
 	pub class_session_progress: ClassSessionProgress,
 	pub course_sub_topic: SubTopics,
 	pub date_end: String,
 	pub date_start: String,
 	pub delivery_mode: String,
+
+	#[serde(skip_deserializing)]
 	pub delivery_mode_desc: String,
 	pub end_date_session_utc: String,
+
+	#[serde(skip_deserializing)]
 	pub is_ended: bool,
 	pub join_url: Option<String>,
+
+	#[serde(skip_deserializing)]
 	pub lecturers: Vec<Lecturer>,
+
+	#[serde(skip_deserializing)]
 	pub meeting_end: String,
+
+	#[serde(skip_deserializing)]
 	pub meeting_start: String,
 	pub resources: ResourceList,
 	pub session_number: u8,
 	pub start_date_session_utc: String,
+
+	#[serde(skip_deserializing)]
 	pub status: Option<String>,
 	pub topic: String,
+
+	#[serde(skip_deserializing)]
 	pub total_resource: u8
 }
 
@@ -305,16 +388,22 @@ impl fmt::Display for ClassVec {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleLecturer {
+	#[serde(skip_deserializing)]
 	id: String,
+	#[serde(skip_deserializing)]
 	name: String,
+	#[serde(skip_deserializing)]
 	picture_url: String
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleResource {
+	#[serde(skip_deserializing)]
 	duration: Option<String>,
+	#[serde(skip_deserializing)]
 	jumlah: Option<String>,
+	#[serde(skip_deserializing)]
 	r#type: Option<String>
 }
 
@@ -323,39 +412,54 @@ pub struct SimpleResource {
 pub struct OngoingClass {
 	#[serde(skip_deserializing)]
 	academic_career_desc: String,
+
 	#[serde(skip_deserializing)]
 	class_campus_name: String,
+	#[serde(skip)]
 	class_code: String,
+
+	#[serde(skip_deserializing)]
 	class_delivery_mode: String,
 	class_id: String,
+
 	#[serde(skip_deserializing)]
 	class_room_number: Option<String>,
+
 	#[serde(skip_deserializing)]
 	course_code: String,
 	course_component: String,
+
+	#[serde(skip_deserializing)]
 	course_id: String,
 	course_name: String,
 	date_end: String,
+
+	#[serde(skip_deserializing)]
 	date_start: String,
 	delivery_mode: String,
+
 	#[serde(skip_deserializing)]
 	delivery_mode_desc: String,
 	id: String,
+
 	#[serde(skip_deserializing)]
 	institution_desc: String,
+
 	#[serde(skip_deserializing)]
 	is_ended: bool,
+
 	#[serde(skip_deserializing)]
 	lecturers: Vec<SimpleLecturer>,
 	meeting_start: String,
+
 	#[serde(skip_deserializing)]
 	resource_id: Option<String>,
 
 	#[serde(skip_deserializing)]
 	resources: Vec<Option<SimpleResource>>,
-	#[serde(skip_deserializing)]
 	session_id: String,
 	session_number: u8,
+	#[serde(skip_deserializing)]
 	session_progress: u8,
 	#[serde(skip_deserializing)]
 	url: Option<String>
@@ -374,17 +478,101 @@ impl fmt::Display for OngoingClasses {
 			let end_date = Local.from_local_datetime(
 				&NaiveDateTime::parse_from_str(ongoing_class.date_end.as_str(), "%FT%X").unwrap()).unwrap();
 			let time_left = end_date - now;
-			write!(f, "> Class Code: **{}**\n> Course Name: **{}**\n> Time Left: **{}d**\n> Session: **{}**\n> Session Progress: **{}%**\n> Delivery Mode: **{}**\n\n",
-				ongoing_class.class_code, 
+			write!(f, "> Class Component: **{}**\n> Course Name: **{}**\n> Time Left: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session Link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n",
+				ongoing_class.course_component, 
 				ongoing_class.course_name, 
-				time_left.num_days(), 
-				ongoing_class.session_number, 
-				ongoing_class.session_progress, 
-				ongoing_class.delivery_mode
+				time_left.num_days(),
+				ongoing_class.session_number,
+				ongoing_class.delivery_mode,
+				ongoing_class.class_id,
+				ongoing_class.session_id
 			)?;
 		}
 		Ok(())
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpcomingClass {
+	#[serde(skip)]
+	academic_career_desc: String,
+
+	#[serde(skip)]
+	class_campus_name: Option<String>,
+	#[serde(skip)]
+	class_code: String,
+
+	#[serde(skip)]
+	class_delivery_mode: String,
+	class_id: String,
+
+	#[serde(skip)]
+	class_room_number: Option<String>,
+
+	#[serde(skip)]
+	course_code: String,
+	course_component: String,
+
+	#[serde(skip)]
+	course_id: String,
+	course_name: String,
+	date_end: String,
+	date_start: String,
+	delivery_mode: String,
+
+	#[serde(skip)]
+	delivery_mode_desc: String,
+
+	#[serde(skip)]
+	id: String,
+
+	#[serde(skip)]
+	institution_desc: String,
+
+	#[serde(skip)]
+	is_ended: bool,
+
+	#[serde(skip)]
+	is_has_ongoing_class: bool,
+	join_url: String,
+
+	#[serde(skip)]
+	lecturers: Vec<SimpleLecturer>,
+
+	#[serde(skip)]
+	meeting_start: String,
+
+	#[serde(skip)]
+	resource_id: String,
+
+	#[serde(skip)]
+	resources: Vec<Option<SimpleResource>>,
+	session_id: String,
+	session_number: u8,
+
+	#[serde(skip)]
+	session_progress: u8
+}
+
+impl fmt::Display for UpcomingClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let now = chrono::offset::Local::now();
+		let start_date = Local.from_local_datetime(
+		&NaiveDateTime::parse_from_str(self.date_start.as_str(), "%FT%X").unwrap()
+	).unwrap();
+		let time_start = start_date - now;
+        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n\n",
+			self.join_url, 
+			self.course_component, 
+			self.course_name, 
+			time_start.num_days(), 
+			self.session_number, 
+			self.delivery_mode
+		)?;
+		Ok(())
+    }
+
 }
 
 #[derive(Debug, Deserialize)]
@@ -596,6 +784,22 @@ impl BinusmayaAPI {
 			.headers(headers)
 			.send().await.expect("something's wrong when sending request")
 			.json::<OngoingClassResponse>().await.expect("Something's wrong when parsing response");
+
+		Ok(res)
+	}
+
+	pub async fn get_upcoming_sessions(&self) -> Result<UpcomingClass, reqwest::Error> {
+		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
+
+		let mut headers = HeaderMap::new();
+		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+
+		let client = reqwest::Client::new();
+		let res = client
+			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Upcoming/student")
+			.headers(headers)
+			.send().await.expect("something's wrong when sending request")
+			.json::<UpcomingClass>().await.expect("Something's wrong when parsing response");
 
 		Ok(res)
 	}

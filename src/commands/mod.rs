@@ -5,3 +5,4 @@ pub mod details;
 pub mod schedule;
 pub mod add;
 pub mod ongoing;
+pub mod upcoming;
