@@ -25,7 +25,7 @@ async fn upcoming(ctx: &Context, msg: &Message) -> CommandResult {
 
 			msg.channel_id.send_message(&ctx.http, |m|
 				m.embed(|e| e 
-						.title("Upcoming Sessions")
+						.title("Upcoming Session")
 						.description(format!("{}", upcoming_session))
 						.colour(PRIMARY_COLOR)
 					)).await?;
