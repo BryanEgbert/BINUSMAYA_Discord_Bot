@@ -48,7 +48,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 					msg.channel_id.send_message(&ctx.http, |m| {
 						m.embed(|e| e
 							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
-							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap(), session_details.course_sub_topic, session_details.resources))
+							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 							.colour(PRIMARY_COLOR)
 							.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
 						)
