@@ -1,5 +1,6 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 [![Heroku](https://heroku-badge.herokuapp.com/?app=heroku-badge&style=flat)](https://heroku-badge.herokuapp.com/projects.html)
+[![BINUSMAYA Assistant](https://img.shields.io/badge/BINUSMAYA%20Assistant-Invite%20me!-blue)](https://discord.com/api/oauth2/authorize?client_id=921712744749756427&permissions=139855391824&scope=bot)
 # BINUSMAYA_Discord_Bot
 Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS University
 
@@ -20,10 +21,14 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 :heavy_exclamation_mark:**Make sure the apps mentioned above is in the same folder with the application**
 
 ## Discord Bot Info
+This is more of a bot for individuals rather than guild servers
 - prefix: `=`  
 - `=help` to get command list  
 - `=help [command]` to get command info
-- Most commands can be run in DM and guild
+- All commands except `=add` can be run in DM and guild
+
+## How It Works
+When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` command, this is needed to fulfill the request header requirements. Don't worry, the bot **will not store your email and password**. It uses file to store the data.
 
 ## How To Launch
 You can fork this project and write 
