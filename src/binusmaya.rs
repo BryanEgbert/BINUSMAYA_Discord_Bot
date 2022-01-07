@@ -147,7 +147,7 @@ pub struct Schedule {
 impl fmt::Display for Schedule {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for class in &self.schedule {
-			write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n", 
+			write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n", 
 				class.title, class.content.clone(), 
 				NaiveDateTime::parse_from_str(class.date_start.as_str(), "%FT%X").unwrap(), 
 				NaiveDateTime::parse_from_str(class.date_end.as_str(), "%FT%X").unwrap(), 
