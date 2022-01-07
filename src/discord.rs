@@ -73,8 +73,12 @@ impl TypeMapKey for ShardManagerContainer {
 }
 
 #[group]
-#[commands(ping, register, add, schedule, details, classes)]
+#[commands(ping, register, add)]
 pub struct General;
+
+#[group]
+#[commands(schedule, details, classes)]
+pub struct Binus;
 
 pub struct Handler;
 
@@ -211,6 +215,7 @@ pub async fn run() {
 			.owners(owners))
 			.after(after_hook)
 			.group(&GENERAL_GROUP)
+			.group(&BINUS_GROUP)
 			.help(&HELP);
 
 	let mut client = Client::builder(token)
