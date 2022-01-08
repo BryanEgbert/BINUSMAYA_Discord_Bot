@@ -537,7 +537,7 @@ pub struct UpcomingClass {
 
 	#[serde(skip)]
 	is_has_ongoing_class: bool,
-	join_url: String,
+	join_url: Option<String>,
 
 	#[serde(skip)]
 	lecturers: Vec<SimpleLecturer>,
@@ -564,8 +564,8 @@ impl fmt::Display for UpcomingClass {
 		&NaiveDateTime::parse_from_str(self.date_start.as_str(), "%FT%X").unwrap()
 	).unwrap();
 		let time_start = start_date - now;
-        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}\n",
-			self.join_url, 
+        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n",
+			self.join_url.clone().unwrap_or("No link".to_string()), 
 			self.course_component, 
 			self.course_name, 
 			time_start.num_days(), 
