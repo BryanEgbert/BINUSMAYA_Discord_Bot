@@ -216,14 +216,8 @@ pub struct Resource {
 
 	#[serde(skip_deserializing)]
 	pub last_updated_date: String,
-
-	#[serde(skip_deserializing)]
 	pub name: String,
-
-	#[serde(skip_deserializing)]
 	pub progress_stamp: u8,
-
-	#[serde(skip_deserializing)]
 	pub progress_status: u8,
 
 	#[serde(skip_deserializing)]
@@ -263,10 +257,22 @@ impl fmt::Display for ResourceList {
 					"?".to_string()
 				}
 			};
-			write!(f, "> Name: **{}**\n> Duration: **{} min**\n> Type: **{}**\n\n", 
+
+			let progess_status = {
+				if resource.progress_status == 2 || resource.progress_stamp == 1 {
+					"Completed"
+				} else if resource.progress_status == 1 {
+					"In progress"
+				} else {
+					"Not started"
+				}
+			};
+
+			write!(f, "> Name: **{}**\n> Duration: **{} min**\n> Type: **{}**\n> Status: **{}**\n\n", 
 				resource.name, 
 				duration,
-				resource.resource_type
+				resource.resource_type,
+				progess_status
 			)?;
 		}
 
@@ -401,11 +407,8 @@ pub struct SimpleLecturer {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleResource {
-	#[serde(skip_deserializing)]
 	duration: Option<String>,
-	#[serde(skip_deserializing)]
 	jumlah: Option<String>,
-	#[serde(skip_deserializing)]
 	r#type: Option<String>
 }
 
@@ -456,13 +459,13 @@ pub struct OngoingClass {
 
 	#[serde(skip_deserializing)]
 	resource_id: Option<String>,
-
-	#[serde(skip_deserializing)]
 	resources: Vec<Option<SimpleResource>>,
 	session_id: String,
 	session_number: u8,
+
 	#[serde(skip_deserializing)]
 	session_progress: u8,
+
 	#[serde(skip_deserializing)]
 	url: Option<String>
 }
@@ -476,16 +479,25 @@ pub struct OngoingClasses {
 impl fmt::Display for OngoingClasses {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for ongoing_class in &self.ongoing_classes{
+			let progress_status = {
+				if ongoing_class.resources.is_empty() {
+					"Completed"
+				} else {
+					"Incomplete"
+				}
+			};
+
 			let now = chrono::offset::Local::now();
 			let end_date = Local.from_local_datetime(
 				&NaiveDateTime::parse_from_str(ongoing_class.date_end.as_str(), "%FT%X").unwrap()).unwrap();
 			let time_left = end_date - now;
-			write!(f, "> Class Component: **{}**\n> Course Name: **{}**\n> Time Left: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session Link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n",
+			write!(f, "> Class Component: **{}**\n> Course Name: **{}**\n> Time Left: **{} min**\n> Session: **{}**\n> Delivery Mode: **{}**\n> Status: **{}**\n> [Session Link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n",
 				ongoing_class.course_component, 
 				ongoing_class.course_name, 
-				time_left.num_days(),
+				time_left.num_minutes(),
 				ongoing_class.session_number,
 				ongoing_class.delivery_mode,
+				progress_status,
 				ongoing_class.class_id,
 				ongoing_class.session_id
 			)?;
