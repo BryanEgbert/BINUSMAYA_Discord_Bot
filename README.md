@@ -8,7 +8,8 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 
 ## Features
 - Get schedule
-- Get session resources
+- Get session articles/links
+- Get progress status of a session
 - Get list of classes from your major
 - Send daily notification on the schedule at 00:00 GMT
 - Update student progress for today's session (VC, Forum, and assignments will not be updated)
@@ -28,7 +29,7 @@ This is more of a bot for individuals rather than guild servers
 - All commands except `=add` can be run in DM and guild
 
 ## How It Works
-When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` command, this is needed to fulfill the request header requirements. Don't worry, the bot **will not store your email and password**. It uses file to store the data.
+When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` command, this is needed to fulfill the request header requirements and also needed to update your student progress. Don't worry, the bot **will not store your email and password**. It uses file to store the data.
 
 ## How To Launch
 You can fork this project and write 
