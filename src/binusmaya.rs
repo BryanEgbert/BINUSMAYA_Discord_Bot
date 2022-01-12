@@ -7,11 +7,18 @@ use std::fmt;
 #[serde(rename_all = "camelCase")]
 pub struct AcademicPeriod {
 	academic_period: String,
+
+	#[serde(skip_deserializing)]
 	academic_period_description: String,
+	#[serde(skip_deserializing)]
 	academic_period_id: Option<String>,
+	#[serde(skip_deserializing)]
 	academic_period_status: bool,
+	#[serde(skip_deserializing)]
 	is_running_period: bool,
+	#[serde(skip_deserializing)]
 	term_begin_date: String,
+	#[serde(skip_deserializing)]
 	term_end_date: String
 }
 
@@ -85,6 +92,7 @@ pub struct UserProfile {
 	xP_point: f32,
 	#[serde(skip_deserializing)]
 	category_list: Vec<String>,
+
 	role_categories: Vec<RoleCategories>,
 }
 
@@ -238,6 +246,7 @@ pub struct Resource {
 
 	#[serde(rename(deserialize = "type"))]
 	pub material_type: Option<String>,
+	#[serde(skip_deserializing)]
 	pub url: Option<String>
 }
 
@@ -302,12 +311,18 @@ pub struct SessionDetails {
 	pub class_delivery_mode: String,
 	pub class_session_progress: ClassSessionProgress,
 	pub course_sub_topic: SubTopics,
+	
+	#[serde(skip_deserializing)]
 	pub date_end: String,
+	
+	#[serde(skip_deserializing)]
 	pub date_start: String,
 	pub delivery_mode: String,
 
 	#[serde(skip_deserializing)]
 	pub delivery_mode_desc: String,
+
+	#[serde(skip_deserializing)]
 	pub end_date_session_utc: String,
 
 	#[serde(skip_deserializing)]
@@ -324,6 +339,8 @@ pub struct SessionDetails {
 	pub meeting_start: String,
 	pub resources: ResourceList,
 	pub session_number: u8,
+
+	#[serde(skip_deserializing)]
 	pub start_date_session_utc: String,
 
 	#[serde(skip_deserializing)]
@@ -371,11 +388,15 @@ pub struct ClassDetails {
 	pub course_code: String,
 	pub course_id: String,
 	pub course_title_en: String,
+	#[serde(skip_deserializing)]
 	pub crse_id: String,
 	pub institution: String,
 	pub lecturers: Vec<Lecturer>,
+	#[serde(skip_deserializing)]
 	pub n_sksp: String,
+	#[serde(skip_deserializing)]
 	pub n_skst: String,
+	#[serde(skip_deserializing)]
 	pub revision: u8,
 	pub sessions: Vec<Session>,
 	pub ssr_component: String
@@ -571,16 +592,12 @@ pub struct UpcomingClass {
 
 impl fmt::Display for UpcomingClass {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let now = chrono::offset::Local::now();
-		let start_date = Local.from_local_datetime(
-		&NaiveDateTime::parse_from_str(self.date_start.as_str(), "%FT%X").unwrap()
-	).unwrap();
-		let time_start = start_date - now;
-        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}d**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n",
+		let start_datetime = NaiveDateTime::parse_from_str(self.date_start.as_str(), "%FT%X").unwrap();
+        write!(f, "**Class Zoom Link**\n{}\n\n**Session Info**\n> Class Component: **{}**\n> Course Name: **{}**\n> Time Start: **{}**\n> Session: **{}**\n> Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n",
 			self.join_url.clone().unwrap_or("No link".to_string()), 
 			self.course_component, 
 			self.course_name, 
-			time_start.num_days(), 
+			start_datetime,
 			self.session_number, 
 			self.delivery_mode,
 			self.class_id,

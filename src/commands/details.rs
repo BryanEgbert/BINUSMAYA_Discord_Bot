@@ -11,8 +11,8 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 #[command]
 #[num_args(3)]
 #[aliases("resource", "d")]
-#[description("Get the link of the class and get the subtopics and resources of the session")]
-#[usage("[subject name];[Class component];[Session number]")]
+#[description("Get the link of the class and get the subtopics and resources of the session\n```Arguments:\n[Subject name](Required) = name of the subject, full name of the subject is not required\n[Class component](Required) = LAB/LEC/TUT\n[Session number](Required) = number of the session```")]
+#[usage("[Subject name];[Class component];[Session number]")]
 #[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let course_name = args.single::<String>()?;
@@ -25,6 +25,12 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 		let jwt_exp = user_data.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();
 		if jwt_exp > now {
+			let mut bot_msg = msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.field("Loading...", "Fetching data", false)
+					.colour(PRIMARY_COLOR)
+				)
+			}).await?;
 			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
 	
 			let class = stream::iter(binusmaya_api.get_classes().await?.classes)
@@ -36,7 +42,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 				let class_details = binusmaya_api.get_class_details(class_id.clone()).await?;
 		
 				if class_details.sessions.len() < session_number {
-					msg.channel_id.send_message(&ctx.http, |m| {
+					bot_msg.edit(&ctx.http, |m| {
 						m.embed(|e| e
 							.colour(PRIMARY_COLOR)
 							.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
@@ -45,7 +51,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 				} else {
 					let session_id = &class_details.sessions[session_number - 1].id;
 					let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
-					msg.channel_id.send_message(&ctx.http, |m| {
+					bot_msg.edit(&ctx.http, |m| {
 						m.embed(|e| e
 							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
 							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))

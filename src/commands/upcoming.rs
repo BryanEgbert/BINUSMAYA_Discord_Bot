@@ -20,10 +20,17 @@ async fn upcoming(ctx: &Context, msg: &Message) -> CommandResult {
 		let now = chrono::offset::Local::now();
 
 		if jwt_exp > now {
+			let mut bot_msg = msg.channel_id.send_message(&ctx.http, |m| {
+				m.embed(|e| e
+					.field("Loading...", "Fetching data", false)
+					.colour(PRIMARY_COLOR)
+				)
+			}).await?;
+
 			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
 			let upcoming_session = binusmaya_api.get_upcoming_sessions().await?;
 
-			msg.channel_id.send_message(&ctx.http, |m|
+			bot_msg.edit(&ctx.http, |m|
 				m.embed(|e| e 
 						.title("Upcoming Session")
 						.description(format!("{}", upcoming_session))
