@@ -52,7 +52,7 @@ async fn launch_selenium(email: String, password: String, proxy: BrowserMobProxy
 	Ok(is_valid)
 }
 
-async fn add_account(email: String, password: String, msg: &mut Message, ctx: &Context) -> CommandResult {
+async fn add_account(email: String, password: String, msg: &Message, ctx: &Context) -> CommandResult {
 	let proxy = BrowserMobProxy {host: "localhost", port: 8082};
 
 	let handle = tokio::task::spawn( async move {
@@ -94,7 +94,7 @@ async fn add_account(email: String, password: String, msg: &mut Message, ctx: &C
 				let res = dropbox_api::upload_file(USER_FILE.to_string()).await?;
 				println!("File upload status code: {}", res);
 				
-				msg.edit(&ctx, |m| {
+				msg.author.dm(&ctx, |m| {
 					m.embed(|e| e
 						.colour(PRIMARY_COLOR)
 						.field("Account Registered", "Account successfully registered", false)
@@ -105,7 +105,7 @@ async fn add_account(email: String, password: String, msg: &mut Message, ctx: &C
 			}
 		},
 		Status::INVALID => {
-			msg.edit(&ctx, |m| {
+			msg.author.dm(&ctx, |m| {
 				m.embed(|e| e
 					.colour(PRIMARY_COLOR)
 					.field("Account is not valid", "Wrong email or password", false))
@@ -131,13 +131,13 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();
 		if jwt_exp < now {
-			let mut bot_msg = msg.channel_id.send_message(&ctx, |m| {
+			msg.channel_id.send_message(&ctx, |m| {
 				m.embed(|e| e
 					.colour(PRIMARY_COLOR)
 					.field("Registering...", "Please wait a few seconds", false))
 			}).await?;
 
-			add_account(email, password, &mut bot_msg, ctx).await.unwrap();
+			add_account(email, password, msg, ctx).await.unwrap();
 		} else {
 			msg.author.dm(&ctx, |m| {
 				m.embed(|e| e
@@ -146,13 +146,13 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 			}).await?;
 		}
 	} else {
-		let mut bot_msg = msg.channel_id.send_message(&ctx, |m| {
+		msg.author.dm(&ctx, |m| {
 			m.embed(|e| e
 				.colour(PRIMARY_COLOR)
 				.field("Registering...", "Please wait a few seconds", false))
 		}).await?;
 
-		add_account(email, password, &mut bot_msg, ctx).await?;
+		add_account(email, password, msg, ctx).await?;
 	}
 
 	Ok(())

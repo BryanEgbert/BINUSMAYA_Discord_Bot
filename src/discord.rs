@@ -104,7 +104,7 @@ async fn send_schedule_daily(ctx: &Context) {
 							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
 								m.embed(|e| e
 									.title("Today's Schedule")
-									.description(format!("**{} Sessions**\n{}For more information about the topics, resources of the session and to get the link of the class, use `=details` command", classes.schedule.len(), classes))
+									.description(format!("{} Sessions\n{}For more information about the topics, resources of the session and to get the link of the class, use `=details` command", classes.schedule.len(), classes))
 									.colour(PRIMARY_COLOR)
 								)
 							}).await.unwrap();
