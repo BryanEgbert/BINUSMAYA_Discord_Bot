@@ -16,6 +16,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 	let date = args.single::<String>().unwrap();
 	let user_data = USER_DATA.lock().await;
 
+	msg.react(&ctx, '👍').await?;
+
 	if user_data.contains_key(msg.author.id.as_u64()) {
 		let jwt_exp = user_data.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();

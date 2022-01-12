@@ -11,6 +11,8 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 #[aliases("c")]
 #[description("Get the list of classes in your major")]
 pub async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.react(&ctx, '👍').await?;
+	
 	let user_data = USER_DATA.lock().await;
 
 	if user_data.contains_key(msg.author.id.as_u64()) {

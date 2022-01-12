@@ -28,6 +28,8 @@ This is more of a bot for individuals rather than guild servers
 - `=help [command]` to get command info
 - All commands except `=add` can be run in DM and guild
 
+**Note:** if you type a command and there is no message from the bot, then either you typed the wrong command or argument for the command.
+
 ## How It Works
 When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` command, this is needed to fulfill the request header requirements and also needed to update your student progress. Don't worry, the bot **will not store your email and password**. It uses file to store the data.
 

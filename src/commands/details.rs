@@ -11,13 +11,15 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 #[command]
 #[num_args(3)]
 #[aliases("resource", "d")]
-#[description("Get the link of the class and get the subtopics and resources of the session")]
-#[usage("[subject name];[Class component];[Session number]")]
+#[description("Get the link of the class and get the subtopics and resources of the session\n```Argument:\n[Subject name] - The name of the subject\n[Class component] - LAB/LEC/TUT\n[Session number] - Number of a session```")]
+#[usage("[Subject name];[Class component];[Session number]")]
 #[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let course_name = args.single::<String>()?;
 	let class_component = args.single::<String>()?;
 	let session_number = args.single::<usize>()?;
+
+	msg.react(&ctx, '👍').await?;
 
 	let user_data = USER_DATA.lock().await;
 

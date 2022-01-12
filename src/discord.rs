@@ -213,7 +213,7 @@ pub async fn run() {
 	let framework = StandardFramework::new()
 		.configure(|c| c
 			.delimiter(';')
-			.prefix("=")
+			.prefix("!")
 			.owners(owners))
 			.after(after_hook)
 			.group(&GENERAL_GROUP)

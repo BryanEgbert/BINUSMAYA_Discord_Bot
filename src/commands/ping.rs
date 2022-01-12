@@ -10,6 +10,8 @@ use crate::discord::ShardManagerContainer;
 #[command]
 #[description = "send pong!"]
 pub async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
+	msg.react(&ctx, '👍').await?;
+	
 	let latency = {
 		let data = ctx.data.read().await;
 		let shard_manager = data.get::<ShardManagerContainer>().unwrap();

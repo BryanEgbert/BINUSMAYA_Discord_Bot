@@ -126,6 +126,8 @@ async fn add_account(email: String, password: String, msg: &Message, ctx: &Conte
 async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let email = args.single::<String>().unwrap();
 	let password = args.single::<String>().unwrap();
+	
+	msg.react(&ctx, '👍').await?;
 
 	if USER_DATA.lock().await.contains_key(msg.author.id.as_u64()){
 		let jwt_exp = USER_DATA.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
@@ -139,14 +141,14 @@ async fn add(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
 			add_account(email, password, msg, ctx).await.unwrap();
 		} else {
-			msg.author.dm(&ctx, |m| {
+			msg.channel_id.send_message(&ctx, |m| {
 				m.embed(|e| e
 					.colour(PRIMARY_COLOR)
 					.field("You've already registered", format!("Please wait **{} days** to re-register your account", jwt_exp.signed_duration_since(now).num_days()), false))
 			}).await?;
 		}
 	} else {
-		msg.author.dm(&ctx, |m| {
+		msg.channel_id.send_message(&ctx, |m| {
 			m.embed(|e| e
 				.colour(PRIMARY_COLOR)
 				.field("Registering...", "Please wait a few seconds", false))
