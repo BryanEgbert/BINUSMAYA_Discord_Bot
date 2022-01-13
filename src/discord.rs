@@ -48,7 +48,6 @@ use crate::{
 		upcoming::*,
 	}, 
 	consts::{
-		PRIMARY_COLOR, 
 		USER_DATA, LOGIN_FILE, USER_FILE, 
 	}, 
 	binusmaya::*
@@ -84,31 +83,21 @@ pub struct Binus;
 
 pub struct Handler;
 
-async fn send_schedule_daily(ctx: &Context) {
+async fn update_student_progress_daily() {
 	loop {
 		let metadata =  metadata(LOGIN_FILE).unwrap();
 	
 		if let Ok(time) = metadata.modified() {
 			let last_login = DateTime::<Local>::from(time).date();
-			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
-				println!("Sending schedule");
+			if last_login.eq(&chrono::offset::Local::now().date()) {
 				stream::iter(USER_DATA.lock().await.iter())
-					.for_each_concurrent(8, |(user_id, user_auth_info)| async move {
-						let context = ctx.clone();
+					.for_each_concurrent(8, |(member_id, user_auth_info)| async move {
+						println!("Updating student progress for {}", member_id);
+
 						let binusmaya_api = BinusmayaAPI{token: user_auth_info.auth.to_string()};
 						let schedule = binusmaya_api.get_schedule(&chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
-						let channel_id = UserId(*user_id).create_dm_channel(&context.http)
-							.await.unwrap().id;
 		
 						if let Some(classes) = schedule {
-							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
-								m.embed(|e| e
-									.title("Today's Schedule")
-									.description(format!("{} Sessions\n{}For more information about the topics, resources of the session and to get the link of the class, use `=details` command", classes.schedule.len(), classes))
-									.colour(PRIMARY_COLOR)
-								)
-							}).await.unwrap();
-		
 							stream::iter(classes.schedule)
 								.for_each_concurrent(8, |s| async {
 									let class_session = binusmaya_api.get_resource(s.custom_param.class_session_id).await.unwrap();
@@ -118,14 +107,6 @@ async fn send_schedule_daily(ctx: &Context) {
 										}
 									}
 								}).await;
-						} else {
-							ChannelId(*channel_id.as_u64()).send_message(&context.http, |m| {
-								m.embed(|e| e
-									.title("Today's Schedule")
-									.colour(PRIMARY_COLOR)
-									.field("Holiday!", "No classes/sessions for today", true)
-								)
-							}).await.unwrap();
 						}
 					}).await;
 
@@ -143,7 +124,7 @@ async fn send_schedule_daily(ctx: &Context) {
 
 #[async_trait]
 impl EventHandler for Handler {
-	async fn ready(&self, ctx: Context, data_about_bot: Ready) {
+	async fn ready(&self, _ctx: Context, data_about_bot: Ready) {
 
 		if !Path::new(USER_FILE).exists() {
 			File::create(USER_FILE).unwrap_or_else(|e| {
@@ -169,7 +150,7 @@ impl EventHandler for Handler {
 
 		tokio::spawn(async move {
 			println!("{:?} is running", thread::current().id());
-			send_schedule_daily(&ctx).await;
+			update_student_progress_daily().await;
 		});
 
 		println!("{} is ready", data_about_bot.user.name);
@@ -213,7 +194,7 @@ pub async fn run() {
 	let framework = StandardFramework::new()
 		.configure(|c| c
 			.delimiter(';')
-			.prefix("!")
+			.prefix("=")
 			.owners(owners))
 			.after(after_hook)
 			.group(&GENERAL_GROUP)
