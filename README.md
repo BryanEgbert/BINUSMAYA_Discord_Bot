@@ -11,8 +11,7 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - Get session articles/links
 - Get progress status of a session
 - Get list of classes from your major
-- Send daily notification on the schedule at 00:00 GMT
-- Update student progress for today's session (VC, Forum, and assignments will not be updated)
+- Update student progress for today's session at 00:00 GMT or 07:00 in WIB (VC, Forum, and assignments will not be updated)
 
 ## Third party Apps Used
 - [Chrome driver](https://chromedriver.chromium.org/downloads)

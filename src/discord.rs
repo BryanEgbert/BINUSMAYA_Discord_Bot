@@ -89,7 +89,7 @@ async fn update_student_progress_daily() {
 	
 		if let Ok(time) = metadata.modified() {
 			let last_login = DateTime::<Local>::from(time).date();
-			if last_login.eq(&chrono::offset::Local::now().date()) {
+			if last_login.succ().eq(&chrono::offset::Local::now().date()) {
 				stream::iter(USER_DATA.lock().await.iter())
 					.for_each_concurrent(8, |(member_id, user_auth_info)| async move {
 						println!("Updating student progress for {}", member_id);
@@ -194,7 +194,7 @@ pub async fn run() {
 	let framework = StandardFramework::new()
 		.configure(|c| c
 			.delimiter(';')
-			.prefix("=")
+			.prefix("!")
 			.owners(owners))
 			.after(after_hook)
 			.group(&GENERAL_GROUP)
