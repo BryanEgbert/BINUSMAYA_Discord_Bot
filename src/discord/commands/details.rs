@@ -1,4 +1,5 @@
 use std::ops::Add;
+use std::str::FromStr;
 use chrono::Duration;
 use futures::{stream, StreamExt, future};
 use serenity::framework::standard::{CommandResult, Args};
@@ -6,6 +7,7 @@ use serenity::framework::standard::macros::command;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
+use crate::discord::helper::Nav;
 use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 
 #[command]
@@ -17,7 +19,7 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let course_name = args.single::<String>()?;
 	let class_component = args.single::<String>()?;
-	let session_number = args.single::<usize>()?;
+	let mut session_number = args.single::<usize>()?;
 
 	msg.react(&ctx, '👍').await?;
 
@@ -47,14 +49,77 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 				} else {
 					let session_id = &class_details.sessions[session_number - 1].id;
 					let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
-					msg.channel_id.send_message(&ctx.http, |m| {
+					let mesg = msg.channel_id.send_message(&ctx.http, |m| {
 						m.embed(|e| e
 							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
 							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 							.colour(PRIMARY_COLOR)
 							.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
-						)
+						);
+						m.components(|c| c.add_action_row(Nav::action_row()));
+						m
 					}).await?;
+
+					let mut cib = mesg.await_component_interactions(&ctx).timeout(Duration::seconds(60 * 3).to_std().unwrap()).await;
+					while let Some(mci) = cib.next().await {
+						let nav = Nav::from_str(&mci.data.custom_id).unwrap();
+						match nav {
+							Nav::Previous => {
+								session_number = if session_number > 1 {
+									session_number - 1
+								} else {
+									1
+								};
+
+								let session_id = &class_details.sessions[session_number - 1].id;
+								let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
+								
+								mci.create_interaction_response(&ctx, |r| {
+									r.kind(InteractionResponseType::UpdateMessage);
+									r.interaction_response_data(|m| {
+										m.create_embed(|e| e
+											.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
+											.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
+											.colour(PRIMARY_COLOR)
+											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+										);
+										m.components(|c| c.add_action_row(Nav::action_row()));
+
+										m
+									});
+
+									r
+								}).await?;
+							},
+							Nav::Next => {
+								session_number = if session_number < class_details.sessions.len() {
+									session_number + 1
+								} else {
+									class_details.sessions.len()
+								};
+
+								let session_id = &class_details.sessions[session_number - 1].id;
+								let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
+
+								mci.create_interaction_response(&ctx, |r| {
+									r.kind(InteractionResponseType::UpdateMessage);
+									r.interaction_response_data(|m| {
+										m.create_embed(|e| e
+											.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
+											.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
+											.colour(PRIMARY_COLOR)
+											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+										);
+										m.components(|c| c.add_action_row(Nav::action_row()));
+
+										m
+									});
+
+									r
+								}).await?;
+							}
+						}
+					}
 				}
 			} else {
 				msg.channel_id.send_message(&ctx.http, |m| {
