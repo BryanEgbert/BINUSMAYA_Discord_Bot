@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env};
 use tokio::sync::Mutex;
 use serenity::utils::Colour;
-use crate::discord::UserAuthInfo;
+use crate::discord::discord::UserAuthInfo;
 
 pub const PRIMARY_COLOR: Colour = Colour::BLUE;
 pub const USER_FILE: &str = "user_data.csv";

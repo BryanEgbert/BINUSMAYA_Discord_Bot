@@ -13,7 +13,7 @@ use std::{
 };
 use csv_async::AsyncReaderBuilder;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Local, Duration};
+use chrono::{DateTime, Local, Duration, NaiveDate};
 use futures::{stream ,StreamExt};
 use serenity::{
     async_trait,
@@ -36,8 +36,7 @@ use serenity::framework::standard::{
     },
 };
 
-use crate::{
-	commands::{
+use crate::discord::commands::{
 		ping::*, 
 		register::*, 
 		classes::*,
@@ -46,12 +45,14 @@ use crate::{
 		add::*,
 		ongoing::*,
 		upcoming::*,
-	}, 
+	};
+use crate:: {
 	consts::{
 		USER_DATA, LOGIN_FILE, USER_FILE, 
 	}, 
 	binusmaya::*
 };
+
 use std::env;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -95,7 +96,7 @@ async fn update_student_progress_daily() {
 						println!("Updating student progress for {}", member_id);
 
 						let binusmaya_api = BinusmayaAPI{token: user_auth_info.auth.to_string()};
-						let schedule = binusmaya_api.get_schedule(&chrono::offset::Local::now().format("%Y-%-m-%-d").to_string()).await.unwrap();
+						let schedule = binusmaya_api.get_schedule(&NaiveDate::parse_from_str(chrono::offset::Local::now().format("%Y-%-m-%-d").to_string().as_str(), "%Y-%-m-%-d").unwrap()).await.unwrap();
 		
 						if let Some(classes) = schedule {
 							stream::iter(classes.schedule)
@@ -175,6 +176,7 @@ async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), 
 
 pub async fn run() {
 	let token = env::var("DISCORD_TOKEN").expect("invalid token");
+	let app_id: u64 = env::var("APPLICATION_ID").expect("Expected application id in env").parse().expect("Invalid application id");
 	let http = Http::new_with_token(&token);
 	let (owners, _) = match http.get_current_application_info().await {
 		Ok(info) => {
@@ -194,7 +196,7 @@ pub async fn run() {
 	let framework = StandardFramework::new()
 		.configure(|c| c
 			.delimiter(';')
-			.prefix("=")
+			.prefix("!")
 			.owners(owners))
 			.after(after_hook)
 			.group(&GENERAL_GROUP)
@@ -204,6 +206,7 @@ pub async fn run() {
 	let mut client = Client::builder(token)
 		.event_handler(Handler)
 		.framework(framework)
+		.application_id(app_id)
 		.await
 		.expect("Error in creating bot");
 

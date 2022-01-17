@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, NaiveDate, Local, TimeZone};
+use chrono::{NaiveDateTime, NaiveDate, Local, TimeZone, Date};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, REFERER, ORIGIN, USER_AGENT, HOST, AUTHORIZATION};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -700,7 +700,7 @@ impl BinusmayaAPI {
 		Ok(Some(academic_period))
 	}
 
-	pub async fn get_schedule(&self, date: &String) -> Result<Option<Schedule>, reqwest::Error> {
+	pub async fn get_schedule(&self, date: &NaiveDate) -> Result<Option<Schedule>, reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 		let mut headers = HeaderMap::new();
 		headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
@@ -713,7 +713,7 @@ impl BinusmayaAPI {
 
 		let client = reqwest::Client::new();
 		let response = client
-			.post(format!("https://func-bm7-schedule-prod.azurewebsites.net/api/Schedule/Date-v1/{}", NaiveDate::parse_from_str(&date, "%Y-%m-%d").unwrap().to_string()))
+			.post(format!("https://func-bm7-schedule-prod.azurewebsites.net/api/Schedule/Date-v1/{}", date.to_string()))
 			.headers(headers)
 			.json(&SchedulePayload {
 				role_activity: role_activities

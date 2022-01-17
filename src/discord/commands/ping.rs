@@ -5,7 +5,7 @@ use serenity::model::prelude::*;
 use serenity::prelude::*;
 
 use crate::consts::PRIMARY_COLOR;
-use crate::discord::ShardManagerContainer;
+use crate::discord::discord::ShardManagerContainer;
 
 #[command]
 #[description = "send pong!"]

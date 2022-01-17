@@ -11,10 +11,10 @@ use thirtyfour::{DesiredCapabilities, Proxy, Capabilities, WebDriver};
 use thirtyfour::error::WebDriverError;
 
 use crate::consts::{CHROME_BINARY, USER_FILE};
-use crate::discord::{UserRecord, UserAuthInfo};
+use crate::discord::discord::{UserRecord, UserAuthInfo};
 use crate::dropbox_api;
 use crate::third_party::{BrowserMobProxy, Status, Selenium};
-use crate::{consts::{PRIMARY_COLOR, USER_DATA}};
+use crate::consts::{PRIMARY_COLOR, USER_DATA};
 
 async fn launch_selenium(email: String, password: String, proxy: BrowserMobProxy) -> Result<Status, WebDriverError> {
         proxy.create_proxy().await?;

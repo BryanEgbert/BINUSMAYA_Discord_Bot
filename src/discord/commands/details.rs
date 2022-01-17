@@ -60,7 +60,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 				msg.channel_id.send_message(&ctx.http, |m| {
 					m.embed(|e| e
 						.colour(PRIMARY_COLOR)
-						.field(format!("subject named {} doesn't exists", course_name), "**Tips:** [subject name] and [class component] are case sensitive", false)
+						.field(format!("subject named {} doesn't exists", course_name), "**Tips:** `[subject name]` and `[class component]` are case sensitive", false)
 					)
 				}).await?;
 			}

@@ -3,7 +3,6 @@
 pub mod third_party;
 pub mod discord;
 pub mod binusmaya;
-pub mod commands;
 pub mod consts;
 mod dropbox_api;
 
@@ -12,6 +11,7 @@ extern crate lazy_static;
 
 use tokio::fs::{File, write};
 use std::process::Command;
+use discord::discord::run;
 
 use consts::{LOGIN_FILE, USER_FILE};
 
@@ -19,7 +19,7 @@ use consts::{LOGIN_FILE, USER_FILE};
 async fn main() {
     fetch_file().await;
     start_third_party_apps();
-    discord::run().await;
+    run().await;
 }
 
 fn start_third_party_apps() {
