@@ -624,6 +624,42 @@ pub struct BinusmayaAPI {
 	pub token: String
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Announcement {
+	academic_career_desc: String,
+	announcement_master_id: String,
+	id: String,
+	title: String,
+	start_date: String,
+	end_date: String,
+	#[serde(skip)]
+	is_read: bool,
+	#[serde(skip)]
+	is_mandatory: bool,
+	#[serde(skip)]
+	link_url: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all ="camelCase")]
+pub struct AnnouncementResponse {
+	announcements: Vec<Announcement>,
+	max_page: u8,
+	page_number: u8,
+	total_data: u8
+}
+
+impl fmt::Display for AnnouncementResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for announcement in &self.announcements {
+			todo!();
+		}
+
+		Ok(())
+    }
+}
+
 impl RoleActivity {
 	fn new(role_category: RoleCategory) -> Self {
 		RoleActivity {
@@ -832,5 +868,36 @@ impl BinusmayaAPI {
 			.json::<UpcomingClass>().await.expect("Something's wrong when parsing response");
 
 		Ok(res)
+	}
+
+	pub async fn get_announcement(&self, page_number: u8) -> Result<AnnouncementResponse, reqwest::Error> {
+		let user_profile: UserProfile = self.get_user_profile().await?;
+
+		let mut headers = HeaderMap::new();
+		headers.extend(self.init_full_header(&user_profile).await);
+
+		let client = reqwest::Client::new();
+		let res = client
+			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/PageSize/5/PageNumber/{}", page_number))
+			.headers(headers)
+			.send().await.expect("Something's wrogn when sending request")
+			.json::<AnnouncementResponse>().await.expect("Something's wrong when parsing response");
+		
+		Ok(res)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::env;
+
+	#[tokio::test]
+	async fn get_announcement_test() {
+		let token = env::var("BEARER_TOKEN").unwrap();
+		let binusmaya_api = BinusmayaAPI{token};
+		let res = binusmaya_api.get_announcement(1).await.unwrap();
+		println!("{:#?}", res);
+		assert_eq!(res.page_number, 1);
 	}
 }
