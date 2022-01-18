@@ -55,6 +55,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 							.colour(PRIMARY_COLOR)
 							.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+							.footer(|f| f.text(format!("session {}/{}", session_number, class_details.sessions.len())))
 						);
 						m.components(|c| c.add_action_row(Nav::action_row()));
 						m
@@ -82,6 +83,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 											.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 											.colour(PRIMARY_COLOR)
 											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+											.footer(|f| f.text(format!("session {}/{}", session_number, class_details.sessions.len())))
 										);
 										m.components(|c| c.add_action_row(Nav::action_row()))
 									})
@@ -105,6 +107,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 											.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 											.colour(PRIMARY_COLOR)
 											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
+											.footer(|f| f.text(format!("session {}/{}", session_number, class_details.sessions.len())))
 										);
 										m.components(|c| c.add_action_row(Nav::action_row()))
 									})
