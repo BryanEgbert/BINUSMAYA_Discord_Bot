@@ -37,6 +37,7 @@ You can fork this project and write
 ```sh
 $ export DROPBOX_TOKEN=[dropbox token]
 $ export GOOGLE_CHROME_SHIM=[chrome binary path]
+$ export APPLICATION_ID=[your_bot_id]
 $ cargo run
 ```
 
