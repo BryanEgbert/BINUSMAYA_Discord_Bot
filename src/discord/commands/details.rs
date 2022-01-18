@@ -60,7 +60,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 						m
 					}).await?;
 
-					let mut cib = mesg.await_component_interactions(&ctx).timeout(Duration::seconds(60 * 3).to_std().unwrap()).await;
+					let mut cib = mesg.await_component_interactions(&ctx).await;
 					while let Some(mci) = cib.next().await {
 						let nav = Nav::from_str(&mci.data.custom_id).unwrap();
 						match nav {
@@ -83,12 +83,8 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 											.colour(PRIMARY_COLOR)
 											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
 										);
-										m.components(|c| c.add_action_row(Nav::action_row()));
-
-										m
-									});
-
-									r
+										m.components(|c| c.add_action_row(Nav::action_row()))
+									})
 								}).await?;
 							},
 							Nav::Next => {
@@ -110,12 +106,8 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 											.colour(PRIMARY_COLOR)
 											.url(format!("https://newbinusmaya.binus.ac.id/lms/course/{}/session/{}", class_id.clone(), session_id))
 										);
-										m.components(|c| c.add_action_row(Nav::action_row()));
-
-										m
-									});
-
-									r
+										m.components(|c| c.add_action_row(Nav::action_row()))
+									})
 								}).await?;
 							}
 						}

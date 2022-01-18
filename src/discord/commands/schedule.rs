@@ -40,8 +40,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 						.description(format!("**{} Session(s)**\n{}", class.schedule.len(), class))
 						.colour(PRIMARY_COLOR)
 					);
-					m.components(|c| c.add_action_row(Nav::action_row()));
-					m
+					m.components(|c| c.add_action_row(Nav::action_row()))
 				}).await?;
 			} else {
 				mesg = msg.channel_id.send_message(&ctx.http, |m| {
@@ -50,12 +49,11 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 						.colour(PRIMARY_COLOR)
 						.field("Holiday!", "No classes/sessions for today", true)
 					);
-					m.components(|c| c.add_action_row(Nav::action_row()));
-					m
+					m.components(|c| c.add_action_row(Nav::action_row()))
 				}).await?;
 			}
 
-			let mut cib = mesg.await_component_interactions(&ctx).timeout(Duration::seconds(60 * 3).to_std().unwrap()).await;
+			let mut cib = mesg.await_component_interactions(&ctx).await;
 			while let Some(mci) = cib.next().await {
 				parsed_date = parsed_date.pred();
 				let nav = Nav::from_str(&mci.data.custom_id).unwrap();
@@ -71,10 +69,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 										.description(format!("**{} Session(s)**\n{}", class.schedule.len(), class))
 										.colour(PRIMARY_COLOR)
 									);
-									m.components(|c| c.add_action_row(Nav::action_row()));
-									m
-								});
-								r
+									m.components(|c| c.add_action_row(Nav::action_row()))
+								})
 							}).await?;
 						} else {
 							mci.create_interaction_response(&ctx, |r| {
@@ -84,10 +80,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 										.title(format!("Schedule for {}", parsed_date.to_string()))
 										.colour(PRIMARY_COLOR)
 										.field("Holiday!", "No classes/sessions for today", true));
-									m.components(|c| c.add_action_row(Nav::action_row()));
-									m
-								});
-								r
+									m.components(|c| c.add_action_row(Nav::action_row()))
+								})
 							}).await?;
 						}
 					},
