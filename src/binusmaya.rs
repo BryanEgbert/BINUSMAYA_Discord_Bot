@@ -660,6 +660,20 @@ impl fmt::Display for AnnouncementResponse {
     }
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all ="camelCase")]
+pub struct AnnouncementDetails {
+	academic_career_desc: String,
+	attachment_links: Vec<Option<String>>,
+	content: String,
+	end_date: String,
+	institution_desc: Option<String>,
+	is_mandatory: bool,
+	link_url: Option<String>,
+	start_date: String,
+	title: String
+}
+
 impl RoleActivity {
 	fn new(role_category: RoleCategory) -> Self {
 		RoleActivity {
@@ -885,6 +899,22 @@ impl BinusmayaAPI {
 		
 		Ok(res)
 	}
+
+	pub async fn get_announcement_details(&self, id: &str) -> Result<AnnouncementDetails, reqwest::Error> {
+		let user_profile: UserProfile = self.get_user_profile().await?;
+
+		let mut headers = HeaderMap::new();
+		headers.extend(self.init_full_header(&user_profile).await);
+
+		let client = reqwest::Client::new();
+		let res = client
+			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/NoRead/{}", id))
+			.headers(headers)
+			.send().await?
+			.json::<AnnouncementDetails>().await?;
+		
+		Ok(res)
+	}
 }
 
 #[cfg(test)]
@@ -899,5 +929,14 @@ mod tests {
 		let res = binusmaya_api.get_announcement(1).await.unwrap();
 		println!("{:#?}", res);
 		assert_eq!(res.page_number, 1);
+	}
+
+	#[tokio::test]
+	async fn get_announcement_details() {
+		let token = env::var("BEARER_TOKEN").unwrap();
+		let binusmaya_api = BinusmayaAPI{token};
+		let res = binusmaya_api.get_announcement_details("0167b34e-bdfc-4a41-8a94-bf08061366f4").await.unwrap();
+		println!("{:#?}", res);
+		assert_eq!(res.title.is_empty(), false);
 	}
 }
