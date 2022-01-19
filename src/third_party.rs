@@ -19,7 +19,8 @@ pub struct Selenium {
 #[derive(Debug)]
 pub enum Status {
 	VALID,
-	INVALID
+	INVALID,
+	ERROR
 }
 
 #[derive(Deserialize)]
@@ -80,17 +81,17 @@ impl BrowserMobProxy {
 
 impl Selenium {
 	async fn microsoft_login(&self) -> WebDriverResult<Status> {
-		let mcr_login_btn = self.driver.find_element(By::ClassName("button--azure--ad")).await?; 
+		let mcr_login_btn = self.driver.find_element(By::ClassName("button--azure--ad")).await.expect("Error in getting mcr_login_btn"); 
 		mcr_login_btn.click().await?;
 
-		let mcr_email = self.driver.find_element(By::Id("i0116")).await?;
+		let mcr_email = self.driver.find_element(By::Id("i0116")).await.expect("Error in getting mcr_email");
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 		
 		mcr_email.send_keys(TypingData::from(self.email.clone()) + Keys::Enter).await?;
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 
-		self.driver.find_element(By::Id("i0118")).await?.send_keys(TypingData::from(self.password.clone()) + Keys::Enter).await?;
-		self.driver.find_element(By::Id("idSIButton9")).await?.click().await?;
+		self.driver.find_element(By::Id("i0118")).await?.send_keys(TypingData::from(self.password.clone()) + Keys::Enter).await.expect("Error in typing password");
+		self.driver.find_element(By::Id("idSIButton9")).await?.click().await.expect("Error in getting mcr_btn");
 		tokio::time::sleep(Duration::from_millis(1000)).await;
 
 		if self.driver.current_url().await?.contains("https://login.microsoftonline.com/") {
