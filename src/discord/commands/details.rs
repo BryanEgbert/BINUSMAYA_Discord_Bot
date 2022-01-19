@@ -1,9 +1,7 @@
-use std::ops::Add;
-use std::str::FromStr;
+use std::{ops::Add, str::FromStr};
 use chrono::Duration;
 use futures::{stream, StreamExt, future};
-use serenity::framework::standard::{CommandResult, Args};
-use serenity::framework::standard::macros::command;
+use serenity::framework::standard::{CommandResult, Args, macros::command};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
