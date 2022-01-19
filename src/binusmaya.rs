@@ -624,12 +624,12 @@ pub struct BinusmayaAPI {
 	pub token: String
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Announcement {
 	academic_career_desc: String,
 	announcement_master_id: String,
-	id: String,
+	pub id: String,
 	title: String,
 	start_date: String,
 	end_date: String,
@@ -641,19 +641,39 @@ pub struct Announcement {
 	link_url: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all ="camelCase")]
 pub struct AnnouncementResponse {
-	announcements: Vec<Announcement>,
-	max_page: u8,
-	page_number: u8,
-	total_data: u8
+	pub announcements: Vec<Announcement>,
+	pub max_page: u8,
+	pub page_number: u8,
+	pub total_data: u8
 }
 
 impl fmt::Display for AnnouncementResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for announcement in &self.announcements {
-			todo!();
+        for (i, announcement) in self.announcements.clone().into_iter().enumerate() {
+			write!(f, "{}. **{}**\n", i + 1, announcement.title)?;
+		}
+
+		Ok(())
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(transparent)]
+pub struct Links {
+	links: Vec<Option<String>>
+}
+
+impl fmt::Display for Links {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		for link in &self.links {
+			if let Some(link) = link {
+				write!(f, "{}\n", link)?;
+			} else {
+				write!(f, "No link")?;
+			}
 		}
 
 		Ok(())
@@ -664,14 +684,14 @@ impl fmt::Display for AnnouncementResponse {
 #[serde(rename_all ="camelCase")]
 pub struct AnnouncementDetails {
 	academic_career_desc: String,
-	attachment_links: Vec<Option<String>>,
-	content: String,
+	pub attachment_links: Links,
+	pub content: String,
 	end_date: String,
 	institution_desc: Option<String>,
 	is_mandatory: bool,
 	link_url: Option<String>,
 	start_date: String,
-	title: String
+	pub title: String
 }
 
 impl RoleActivity {
@@ -892,7 +912,7 @@ impl BinusmayaAPI {
 
 		let client = reqwest::Client::new();
 		let res = client
-			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/PageSize/5/PageNumber/{}", page_number))
+			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/PageSize/100/PageNumber/{}", page_number))
 			.headers(headers)
 			.send().await.expect("Something's wrogn when sending request")
 			.json::<AnnouncementResponse>().await.expect("Something's wrong when parsing response");
@@ -900,7 +920,7 @@ impl BinusmayaAPI {
 		Ok(res)
 	}
 
-	pub async fn get_announcement_details(&self, id: &str) -> Result<AnnouncementDetails, reqwest::Error> {
+	pub async fn get_announcement_details(&self, id: &String) -> Result<AnnouncementDetails, reqwest::Error> {
 		let user_profile: UserProfile = self.get_user_profile().await?;
 
 		let mut headers = HeaderMap::new();
@@ -935,7 +955,7 @@ mod tests {
 	async fn get_announcement_details() {
 		let token = env::var("BEARER_TOKEN").unwrap();
 		let binusmaya_api = BinusmayaAPI{token};
-		let res = binusmaya_api.get_announcement_details("0167b34e-bdfc-4a41-8a94-bf08061366f4").await.unwrap();
+		let res = binusmaya_api.get_announcement_details(&String::from("0167b34e-bdfc-4a41-8a94-bf08061366f4")).await.unwrap();
 		println!("{:#?}", res);
 		assert_eq!(res.title.is_empty(), false);
 	}

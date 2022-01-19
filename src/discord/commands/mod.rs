@@ -6,3 +6,4 @@ pub mod schedule;
 pub mod add;
 pub mod ongoing;
 pub mod upcoming;
+pub mod announcement;
