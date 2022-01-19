@@ -59,7 +59,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 						m
 					}).await?;
 
-					let mut cib = mesg.await_component_interactions(&ctx).await;
+					let mut cib = mesg.await_component_interactions(&ctx).timeout(Duration::seconds(30).to_std().unwrap()).await;
 					while let Some(mci) = cib.next().await {
 						let nav = Nav::from_str(&mci.data.custom_id).unwrap();
 						match nav {
