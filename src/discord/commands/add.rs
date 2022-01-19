@@ -45,7 +45,7 @@ async fn launch_selenium(email: String, password: String, proxy: BrowserMobProxy
 
     
     BrowserMobProxy::new_har(&proxy).await?;
-    let is_valid = selenium.run().await?;
+    let is_valid = selenium.run().await.unwrap_or(Status::ERROR);
 	
 	selenium.quit().await?;
 
@@ -109,6 +109,16 @@ async fn add_account(email: String, password: String, msg: &Message, ctx: &Conte
 				m.embed(|e| e
 					.colour(PRIMARY_COLOR)
 					.field("Account is not valid", "Wrong email or password", false))
+			}).await?;
+
+			proxy.delete_proxy().await?;
+		},
+		Status::ERROR => {
+			msg.author.dm(&ctx, |m| {
+				m.embed(|e| e
+					.colour(PRIMARY_COLOR)
+					.field("Error in registering", "Please register again, if the problem appear again, please open a new issue [here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot/issues)", false)
+				)
 			}).await?;
 
 			proxy.delete_proxy().await?;
