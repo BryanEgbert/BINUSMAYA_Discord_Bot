@@ -12,37 +12,46 @@ use scraper::{Html, Selector};
 use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::{BinusmayaAPI, AnnouncementResponse, AnnouncementDetails}};
 
 async fn send_announcement_details(ctx: &Context, msg: &Message, binusmaya_api: &BinusmayaAPI, announcement_list: &AnnouncementResponse) {
-	let announcement_details: AnnouncementDetails;
+	let announcement_details: Option<AnnouncementDetails>;
+	let title: String;
 	let mut content = String::new();
 
 	if let Some(answer) = &msg.author.await_reply(&ctx).timeout(Duration::seconds(30).to_std().unwrap()).await {
 		let reply: usize = answer.content.parse().unwrap_or(0);
-		announcement_details = binusmaya_api.get_announcement_details(&announcement_list.announcements[reply - 1].id).await.unwrap();
+		announcement_details = binusmaya_api.get_announcement_details(&announcement_list.announcements[reply - 1].id).await.unwrap_or(None);
+		
+		if let Some(announcement_details) = announcement_details {
+			title = announcement_details.title;
 
-		let html = Html::parse_fragment(&announcement_details.content);
-		let selector = Selector::parse("p").unwrap();
+			let html = Html::parse_fragment(&announcement_details.content);
+			let selector = Selector::parse("p").unwrap();
+	
+			html.select(&selector).into_iter().for_each(|p| {
+				let mut text = p.inner_html();
+				if text.contains("<br>") {
+					text = text.replace("<br>", "\n");
+				}
+				content.push_str(text.as_str());
+				content.push('\n');
+			});
+			content.push_str(format!("**Attachment Link(s)\n{}**", announcement_details.attachment_links).as_str());
+		} else {
+			title = "Error".to_string();
+			content = "Object reference not set to an instance of an object".to_string();
+		}
 
-		html.select(&selector).into_iter().for_each(|p| {
-			let mut text = p.inner_html();
-			if text.contains("<br>") {
-				text = text.replace("<br>", "\n");
-			}
-			content.push_str(text.as_str());
-			content.push('\n');
-		});
+		msg.channel_id.send_message(&ctx, |m|
+			m.embed(|e| e
+				.title(title)
+				.description(content)
+				.colour(PRIMARY_COLOR)
+			)
+		).await.unwrap();
 
 	} else {
 		return;
 	}
 
-	msg.channel_id.send_message(&ctx, |m|
-		m.embed(|e| e
-			.title(announcement_details.title)
-			.description(content)
-			.colour(PRIMARY_COLOR)
-			.field("Attachment link(s)", announcement_details.attachment_links, false)
-		)
-	).await.unwrap();
 }
 
 #[command]
@@ -65,7 +74,6 @@ async fn announcement(ctx: &Context, msg: &Message) -> CommandResult {
 					.title("Type the number to see the content")
 					.description(&announcement_list)
 					.colour(PRIMARY_COLOR)
-					.url("https://newbinusmaya.binus.ac.id/announcement")
 					.footer(|f| f.text("Timeout in 30 seconds"))
 				)
 			}).await?;

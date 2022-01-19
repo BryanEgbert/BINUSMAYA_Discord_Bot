@@ -920,7 +920,7 @@ impl BinusmayaAPI {
 		Ok(res)
 	}
 
-	pub async fn get_announcement_details(&self, id: &String) -> Result<AnnouncementDetails, reqwest::Error> {
+	pub async fn get_announcement_details(&self, id: &String) -> Result<Option<AnnouncementDetails>, reqwest::Error> {
 		let user_profile: UserProfile = self.get_user_profile().await?;
 
 		let mut headers = HeaderMap::new();
@@ -933,7 +933,7 @@ impl BinusmayaAPI {
 			.send().await?
 			.json::<AnnouncementDetails>().await?;
 		
-		Ok(res)
+		Ok(Some(res))
 	}
 }
 
@@ -957,6 +957,6 @@ mod tests {
 		let binusmaya_api = BinusmayaAPI{token};
 		let res = binusmaya_api.get_announcement_details(&String::from("0167b34e-bdfc-4a41-8a94-bf08061366f4")).await.unwrap();
 		println!("{:#?}", res);
-		assert_eq!(res.title.is_empty(), false);
+		assert_eq!(res.unwrap().title.is_empty(), false);
 	}
 }
