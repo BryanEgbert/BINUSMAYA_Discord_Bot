@@ -21,13 +21,13 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
 	msg.react(&ctx, '👍').await?;
 
-	let user_data = USER_DATA.lock().await;
+	let user_data = USER_DATA.clone();
 
-	if user_data.contains_key(msg.author.id.as_u64()) {
-		let jwt_exp = user_data.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+	if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
+		let jwt_exp = user_data.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();
 		if jwt_exp > now {
-			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
+			let binusmaya_api = BinusmayaAPI{token: user_data.lock().await.get(msg.author.id.as_u64()).unwrap().auth.clone()};
 	
 			let class = stream::iter(binusmaya_api.get_classes().await?.classes)
 				.filter(|c| future::ready(c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)))

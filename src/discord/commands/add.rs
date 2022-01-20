@@ -63,7 +63,8 @@ async fn add_account(email: String, password: String, msg: &Message, ctx: &Conte
 
 	match is_valid {
 		Status::VALID => {
-			if !USER_DATA.lock().await.contains_key(msg.author.id.as_u64()) {
+			let user_data = USER_DATA.clone();
+			if !user_data.lock().await.contains_key(msg.author.id.as_u64()) {
 				let har = BrowserMobProxy::get_har(&proxy).await?;
 				let len = har["log"]["entries"].as_array().unwrap().len();
 				let bearer_token = &har["log"]["entries"][len - 1]["request"]["headers"][6]["value"].to_string();
@@ -74,7 +75,7 @@ async fn add_account(email: String, password: String, msg: &Message, ctx: &Conte
 					last_registered: Local::now()			
 				};
 				
-				USER_DATA.lock().await.insert(user_record.member_id, UserAuthInfo{ auth: user_record.auth.clone(), last_registered: user_record.last_registered});
+				user_data.lock().await.insert(user_record.member_id, UserAuthInfo{ auth: user_record.auth.clone(), last_registered: user_record.last_registered});
 	
 				let mut wtr = AsyncWriterBuilder::new()
 					.has_headers(false)

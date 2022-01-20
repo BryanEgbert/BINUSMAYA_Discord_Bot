@@ -20,16 +20,16 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI, discord
 #[example("2022-01-05")]
 async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 	let date = args.single::<String>().unwrap();
-	let user_data = USER_DATA.lock().await;
+	let user_data = USER_DATA.clone();
 
 	msg.react(&ctx, '👍').await?;
 
-	if user_data.contains_key(msg.author.id.as_u64()) {
-		let jwt_exp = user_data.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
+	if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
+		let jwt_exp = user_data.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
 		let now = chrono::offset::Local::now();
 		if jwt_exp > now {
 			let mut parsed_date = NaiveDate::parse_from_str(&date, "%Y-%-m-%-d").unwrap();
-			let binusmaya_api = BinusmayaAPI{token: user_data.get(msg.author.id.as_u64()).unwrap().auth.clone()};
+			let binusmaya_api = BinusmayaAPI{token: user_data.lock().await.get(msg.author.id.as_u64()).unwrap().auth.clone()};
 			let mut schedule = binusmaya_api.get_schedule(&parsed_date).await?;
 			let mesg: Message;
 	
@@ -53,7 +53,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 				}).await?;
 			}
 
-			let mut cib = mesg.await_component_interactions(&ctx).await;
+			let mut cib = mesg.await_component_interactions(&ctx).message_id(mesg.id).await;
 			while let Some(mci) = cib.next().await {
 				parsed_date = parsed_date.pred();
 				let nav = Nav::from_str(&mci.data.custom_id).unwrap();
