@@ -1,4 +1,4 @@
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Heroku](https://heroku-badge.herokuapp.com/?app=heroku-badge&style=flat)](https://heroku-badge.herokuapp.com/projects.html)
 [![BINUSMAYA Assistant](https://img.shields.io/badge/BINUSMAYA%20Assistant-Invite%20me!-blue)](https://discord.com/api/oauth2/authorize?client_id=921712744749756427&permissions=139855391824&scope=bot)
 # BINUSMAYA_Discord_Bot
