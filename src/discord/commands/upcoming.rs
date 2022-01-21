@@ -24,14 +24,24 @@ async fn upcoming(ctx: &Context, msg: &Message) -> CommandResult {
 
 		if jwt_exp > now {
 			let binusmaya_api = BinusmayaAPI{token: user_data.lock().await.get(msg.author.id.as_u64()).unwrap().auth.clone()};
-			let upcoming_session = binusmaya_api.get_upcoming_sessions().await?;
+			let upcoming_session = binusmaya_api.get_upcoming_sessions().await.unwrap_or(None);
 
-			msg.channel_id.send_message(&ctx.http, |m|
-				m.embed(|e| e 
+			if let Some(session) = upcoming_session {
+				msg.channel_id.send_message(&ctx.http, |m|
+					m.embed(|e| e 
 						.title("Upcoming Session")
-						.description(format!("{}", upcoming_session))
+						.description(session)
 						.colour(PRIMARY_COLOR)
 					)).await?;
+			} else {
+				msg.channel_id.send_message(&ctx.http, |m|
+					m.embed(|e| e 
+						.title("Upcoming Session")
+						.description(format!("{}", "No upcoming session"))
+						.colour(PRIMARY_COLOR)
+					)).await?;
+			}
+
 		} else {
 			msg.channel_id.send_message(&ctx.http, |m| {
 				m.embed(|e| e

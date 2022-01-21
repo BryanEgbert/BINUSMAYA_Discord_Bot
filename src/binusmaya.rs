@@ -888,7 +888,7 @@ impl BinusmayaAPI {
 		Ok(res)
 	}
 
-	pub async fn get_upcoming_sessions(&self) -> Result<UpcomingClass, reqwest::Error> {
+	pub async fn get_upcoming_sessions(&self) -> Result<Option<UpcomingClass>, reqwest::Error> {
 		let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self).await.expect("Error in getting user profile");
 
 		let mut headers = HeaderMap::new();
@@ -899,7 +899,7 @@ impl BinusmayaAPI {
 			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Upcoming/student")
 			.headers(headers)
 			.send().await.expect("something's wrong when sending request")
-			.json::<UpcomingClass>().await.expect("Something's wrong when parsing response");
+			.json::<Option<UpcomingClass>>().await.unwrap_or(None );
 
 		Ok(res)
 	}
