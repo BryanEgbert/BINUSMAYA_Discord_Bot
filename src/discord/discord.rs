@@ -46,6 +46,7 @@ use crate::discord::commands::{
 		ongoing::*,
 		upcoming::*,
 		announcement::*,
+		about::*,
 	};
 use crate:: {
 	consts::{
@@ -76,7 +77,7 @@ impl TypeMapKey for ShardManagerContainer {
 }
 
 #[group]
-#[commands(ping, register, add)]
+#[commands(ping, register, add, about)]
 pub struct General;
 
 #[group]
