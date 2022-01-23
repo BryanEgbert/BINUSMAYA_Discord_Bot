@@ -3,12 +3,22 @@ use std::ops::Add;
 use std::io::Write;
 use chrono::{Duration, Local};
 use csv_async::AsyncWriterBuilder;
-use serenity::framework::standard::{CommandResult, Args};
-use serenity::framework::standard::macros::command;
-use serenity::model::prelude::*;
-use serenity::prelude::*;
-use thirtyfour::{DesiredCapabilities, Proxy, Capabilities, WebDriver};
-use thirtyfour::error::WebDriverError;
+use serenity::{
+	framework::standard::{
+		CommandResult, 
+		Args, 
+		macros::command
+	},
+	 model::prelude::*, 
+	 prelude::*
+};
+use thirtyfour::{
+	DesiredCapabilities, 
+	Proxy, 
+	Capabilities, 
+	WebDriver, 
+	error::WebDriverError
+};
 
 use crate::consts::{CHROME_BINARY, USER_FILE};
 use crate::discord::discord::{UserRecord, UserAuthInfo};
