@@ -1,19 +1,16 @@
 use serenity::{
-	framework::standard::{
-		CommandResult, 
-		macros::command
-	},
-	 model::prelude::*, 
-	 prelude::*
+    framework::standard::{macros::command, CommandResult},
+    model::prelude::*,
+    prelude::*,
 };
 
 use crate::consts::PRIMARY_COLOR;
 
 #[command]
 async fn about(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.react(&ctx, '👍').await?;
+    msg.react(&ctx, '👍').await?;
 
-	msg.channel_id.send_message(&ctx, |m| {
+    msg.channel_id.send_message(&ctx, |m| {
 		m.embed(|e| e
 			.colour(PRIMARY_COLOR)
 			.field("Made By:", "Bryan Egbert `PlayerPlay#9549`", false)
@@ -23,5 +20,5 @@ async fn about(ctx: &Context, msg: &Message) -> CommandResult {
 			.footer(|f| f.text("This bot is open source. Any feedback or feature request is welcome"))
 		)
 	}).await?;
-	Ok(())
+    Ok(())
 }

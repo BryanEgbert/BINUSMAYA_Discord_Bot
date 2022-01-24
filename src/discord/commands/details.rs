@@ -1,12 +1,15 @@
-use std::{ops::Add, str::FromStr};
 use chrono::Duration;
-use futures::{stream, StreamExt, future};
-use serenity::framework::standard::{CommandResult, Args, macros::command};
+use futures::{future, stream, StreamExt};
+use serenity::framework::standard::{macros::command, Args, CommandResult};
 use serenity::model::prelude::*;
 use serenity::prelude::*;
+use std::{ops::Add, str::FromStr};
 
 use crate::discord::helper::Nav;
-use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
+use crate::{
+    binusmaya::BinusmayaAPI,
+    consts::{PRIMARY_COLOR, USER_DATA},
+};
 
 #[command]
 #[num_args(3)]
@@ -15,39 +18,71 @@ use crate::{consts::{PRIMARY_COLOR, USER_DATA}, binusmaya::BinusmayaAPI};
 #[usage("[Subject name];[Class component];[Session number]")]
 #[example("Linear;LEC;1")]
 async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-	let course_name = args.single::<String>()?;
-	let class_component = args.single::<String>()?;
-	let mut session_number = args.single::<usize>()?;
+    let course_name = args.single::<String>()?;
+    let class_component = args.single::<String>()?;
+    let mut session_number = args.single::<usize>()?;
 
-	msg.react(&ctx, '👍').await?;
+    msg.react(&ctx, '👍').await?;
 
-	let user_data = USER_DATA.clone();
+    let user_data = USER_DATA.clone();
 
-	if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-		let jwt_exp = user_data.lock().await.get(msg.author.id.as_u64()).unwrap().last_registered.add(Duration::weeks(52));
-		let now = chrono::offset::Local::now();
-		if jwt_exp > now {
-			let binusmaya_api = BinusmayaAPI{token: user_data.lock().await.get(msg.author.id.as_u64()).unwrap().auth.clone()};
-	
-			let class = stream::iter(binusmaya_api.get_classes().await?.classes)
-				.filter(|c| future::ready(c.course_name.contains(&course_name) && c.ssr_component.eq(&class_component)))
-				.next().await;
-	
-			if let Some(c) = class {
-				let class_id = c.class_id;
-				let class_details = binusmaya_api.get_class_details(class_id.clone()).await?;
-		
-				if class_details.sessions.len() < session_number {
-					msg.channel_id.send_message(&ctx.http, |m| {
-						m.embed(|e| e
-							.colour(PRIMARY_COLOR)
-							.field(format!("Session {} doesn't exists", session_number), format!("There's only {} Sessions", class_details.sessions.len()), false)
-						)
-					}).await.unwrap();
-				} else {
-					let session_id = &class_details.sessions[session_number - 1].id;
-					let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
-					let mesg = msg.channel_id.send_message(&ctx.http, |m| {
+    if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
+        let jwt_exp = user_data
+            .lock()
+            .await
+            .get(msg.author.id.as_u64())
+            .unwrap()
+            .last_registered
+            .add(Duration::weeks(52));
+        let now = chrono::offset::Local::now();
+        if jwt_exp > now {
+            let binusmaya_api = BinusmayaAPI {
+                token: user_data
+                    .lock()
+                    .await
+                    .get(msg.author.id.as_u64())
+                    .unwrap()
+                    .auth
+                    .clone(),
+            };
+
+            let class = stream::iter(binusmaya_api.get_classes().await?.classes)
+                .filter(|c| {
+                    future::ready(
+                        c.course_name.contains(&course_name)
+                            && c.ssr_component.eq(&class_component),
+                    )
+                })
+                .next()
+                .await;
+
+            if let Some(c) = class {
+                let class_id = c.class_id;
+                let class_details = binusmaya_api.get_class_details(class_id.clone()).await?;
+
+                if class_details.sessions.len() < session_number {
+                    msg.channel_id
+                        .send_message(&ctx.http, |m| {
+                            m.embed(|e| {
+                                e.colour(PRIMARY_COLOR).field(
+                                    format!("Session {} doesn't exists", session_number),
+                                    format!(
+                                        "There's only {} Sessions",
+                                        class_details.sessions.len()
+                                    ),
+                                    false,
+                                )
+                            })
+                        })
+                        .await
+                        .unwrap();
+                } else {
+                    let session_id = &class_details.sessions[session_number - 1].id;
+                    let session_details = binusmaya_api
+                        .get_resource(session_id.to_string())
+                        .await
+                        .unwrap();
+                    let mesg = msg.channel_id.send_message(&ctx.http, |m| {
 						m.embed(|e| e
 							.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
 							.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
@@ -59,21 +94,24 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 						m
 					}).await?;
 
-					let mut cib = mesg.await_component_interactions(&ctx).await;
-					while let Some(mci) = cib.next().await {
-						let nav = Nav::from_str(&mci.data.custom_id).unwrap();
-						match nav {
-							Nav::Previous => {
-								session_number = if session_number > 1 {
-									session_number - 1
-								} else {
-									1
-								};
+                    let mut cib = mesg.await_component_interactions(&ctx).await;
+                    while let Some(mci) = cib.next().await {
+                        let nav = Nav::from_str(&mci.data.custom_id).unwrap();
+                        match nav {
+                            Nav::Previous => {
+                                session_number = if session_number > 1 {
+                                    session_number - 1
+                                } else {
+                                    1
+                                };
 
-								let session_id = &class_details.sessions[session_number - 1].id;
-								let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
-								
-								mci.create_interaction_response(&ctx, |r| {
+                                let session_id = &class_details.sessions[session_number - 1].id;
+                                let session_details = binusmaya_api
+                                    .get_resource(session_id.to_string())
+                                    .await
+                                    .unwrap();
+
+                                mci.create_interaction_response(&ctx, |r| {
 									r.kind(InteractionResponseType::UpdateMessage);
 									r.interaction_response_data(|m| {
 										m.create_embed(|e| e
@@ -86,18 +124,21 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 										m.components(|c| c.add_action_row(Nav::action_row()))
 									})
 								}).await?;
-							},
-							Nav::Next => {
-								session_number = if session_number < class_details.sessions.len() {
-									session_number + 1
-								} else {
-									class_details.sessions.len()
-								};
+                            }
+                            Nav::Next => {
+                                session_number = if session_number < class_details.sessions.len() {
+                                    session_number + 1
+                                } else {
+                                    class_details.sessions.len()
+                                };
 
-								let session_id = &class_details.sessions[session_number - 1].id;
-								let session_details = binusmaya_api.get_resource(session_id.to_string()).await.unwrap();
+                                let session_id = &class_details.sessions[session_number - 1].id;
+                                let session_details = binusmaya_api
+                                    .get_resource(session_id.to_string())
+                                    .await
+                                    .unwrap();
 
-								mci.create_interaction_response(&ctx, |r| {
+                                mci.create_interaction_response(&ctx, |r| {
 									r.kind(InteractionResponseType::UpdateMessage);
 									r.interaction_response_data(|m| {
 										m.create_embed(|e| e
@@ -110,34 +151,44 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 										m.components(|c| c.add_action_row(Nav::action_row()))
 									})
 								}).await?;
-							}
-						}
-					}
-				}
-			} else {
-				msg.channel_id.send_message(&ctx.http, |m| {
+                            }
+                        }
+                    }
+                }
+            } else {
+                msg.channel_id.send_message(&ctx.http, |m| {
 					m.embed(|e| e
 						.colour(PRIMARY_COLOR)
 						.field(format!("subject named {} doesn't exists", course_name), "**Tips:** `[subject name]` and `[class component]` are case sensitive", false)
 					)
 				}).await?;
-			}
-		} else {
-			msg.channel_id.send_message(&ctx.http, |m| {
-				m.embed(|e| e
-					.colour(PRIMARY_COLOR)
-					.field("Your bearer token has expired", "please re-register using `=add` command", false)
-				)
-			}).await?;
-		}	
-	} else {
-		msg.channel_id.send_message(&ctx.http, |m| {
-			m.embed(|e| e
-				.colour(PRIMARY_COLOR)
-				.field("You're not registered", "please register first using `=register` command", false)
-			)
-		}).await?;
-	}
+            }
+        } else {
+            msg.channel_id
+                .send_message(&ctx.http, |m| {
+                    m.embed(|e| {
+                        e.colour(PRIMARY_COLOR).field(
+                            "Your bearer token has expired",
+                            "please re-register using `=add` command",
+                            false,
+                        )
+                    })
+                })
+                .await?;
+        }
+    } else {
+        msg.channel_id
+            .send_message(&ctx.http, |m| {
+                m.embed(|e| {
+                    e.colour(PRIMARY_COLOR).field(
+                        "You're not registered",
+                        "please register first using `=register` command",
+                        false,
+                    )
+                })
+            })
+            .await?;
+    }
 
-	Ok(())
+    Ok(())
 }
