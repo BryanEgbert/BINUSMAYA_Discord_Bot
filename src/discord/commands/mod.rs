@@ -1,10 +1,11 @@
-pub mod ping;
-pub mod register;
+pub mod about;
+pub mod add;
+pub mod announcement;
 pub mod classes;
 pub mod details;
-pub mod schedule;
-pub mod add;
 pub mod ongoing;
+pub mod ping;
+pub mod register;
+pub mod schedule;
+pub mod test;
 pub mod upcoming;
-pub mod announcement;
-pub mod about;
