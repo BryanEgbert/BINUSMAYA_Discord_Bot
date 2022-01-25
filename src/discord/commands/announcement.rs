@@ -16,7 +16,13 @@ fn parse_html(content: &String) -> String {
     let mut parsed_content = String::new();
 
     let html = Html::parse_fragment(content);
-    let selector = Selector::parse("p").unwrap();
+    let selector;
+    
+    if content.contains("<p>") {
+        selector = Selector::parse("p").unwrap();
+    } else {
+        selector = Selector::parse("div").unwrap();
+    }
 
     html.select(&selector).into_iter().for_each(|p| {
         let mut text = p.inner_html();

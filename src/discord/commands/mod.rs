@@ -7,5 +7,4 @@ pub mod ongoing;
 pub mod ping;
 pub mod register;
 pub mod schedule;
-pub mod test;
 pub mod upcoming;
