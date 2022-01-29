@@ -19,7 +19,7 @@ pub struct Selenium {
 }
 
 #[derive(Debug)]
-pub enum Status<T: ToString> {
+pub enum Status<T> {
     VALID(T),
     INVALID(T),
     ERROR(T),
