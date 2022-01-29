@@ -1,5 +1,5 @@
 use chrono::Duration;
-use scraper::{Html, Selector};
+use pcre2::bytes::RegexBuilder;
 use serenity::{
     framework::standard::{macros::command, CommandResult},
     model::prelude::*,
@@ -12,26 +12,83 @@ use crate::{
     consts::{PRIMARY_COLOR, USER_DATA},
 };
 
-fn parse_html(content: &String) -> String {
+fn parse_html(content: &str) -> String {
     let mut parsed_content = String::new();
+    let content2 = String::from(content);
+    let reg = RegexBuilder::new().build(r"(?P<open_tag><.*?>)(?P<inner_html>.*?)(?P<close_tag></.*?>)").unwrap();
 
-    let html = Html::parse_fragment(content);
-    let selector;
-    
-    if content.contains("<p>") {
-        selector = Selector::parse("p").unwrap();
-    } else {
-        selector = Selector::parse("div").unwrap();
-    }
+    for tags in reg.captures_iter(&content2.as_bytes()) {
+        let caps = tags.unwrap();
+        let open_tag = std::str::from_utf8(&caps["open_tag"]).unwrap();
+        let content = std::str::from_utf8(&caps["inner_html"]).unwrap();
 
-    html.select(&selector).into_iter().for_each(|p| {
-        let mut text = p.inner_html();
-        if text.contains("<br>") {
-            text = text.replace("<br>", "\n");
+        if open_tag.contains("<li") {
+            parsed_content.push_str("- ");
         }
-        parsed_content.push_str(text.as_str());
-        parsed_content.push('\n');
-    });
+
+        if content.eq("&nbsp;") {
+            parsed_content.push_str(content.replace("&nbsp;", "\n").as_str());
+        } else if content.contains("<strong>") && content.contains("<span style=\"text-decoration: underline;\">") {
+            parsed_content.push_str(content.replace("<strong>", "").replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
+            parsed_content.push_str("__");
+        } else if content.contains("<em>") {
+            parsed_content.push_str(content.replace("<em>", "*").as_str());
+            parsed_content.push('*');
+        } else if content.contains("<a") {
+            let mut content = String::from(content);
+
+            let start_tag = content.find("<a").unwrap();
+            let end_tag = content.rfind(">").unwrap();
+
+            content.replace_range(start_tag..end_tag+1, "");
+
+            parsed_content.push_str(content.replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
+            parsed_content.push_str("__");
+        } else if content.contains("<span style=\"text-decoration: underline;\">") {
+            parsed_content.push_str(content.replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
+            parsed_content.push_str("__");
+        } else if content.contains("<strong>") {
+            parsed_content.push_str(content.replace("&nbsp;", " ").replace("<strong>", "**").replace("&ge;", "≥").as_str());
+            parsed_content.push_str("**");
+        } else {
+             parsed_content.push_str(content.replace("&nbsp;", " ").replace("&ge;", "≥").as_str());
+        }
+
+        parsed_content.push('\n');        
+        println!("open: {:?}\tcontent:{:?}\tclose: {:?}", std::str::from_utf8(&caps["open_tag"]).unwrap(), std::str::from_utf8(&caps["inner_html"]).unwrap(), std::str::from_utf8(&caps["close_tag"]).unwrap());
+    }
+    // let v: Vec<&str> = content.split_inclusive('>').collect();
+    // println!("{:?}", &v);
+
+    // v.clone().iter().enumerate().for_each(|(i, string)| {
+    //     let owned_string = string.to_owned();
+    //     if owned_string.contains("<p>") || owned_string.contains("</p>") || owned_string.contains("<div>") || owned_string.contains("</div>") || owned_string.contains("<ul>") || owned_string.contains("</ul>") || owned_string.contains("<li>") {
+    //         v[i] = v[i].replace("<p>", "").as_str();
+    //     }
+
+    // });
+
+    // parsed_content.push_str(&content
+    //     .replace("<p>", "")
+    //     .replace("</p>", "")
+    //     .replace("<div>", "")
+    //     .replace("</div>", "")
+    //     .replace("<br>", "\n")
+    //     .replace("<br />", "\n")
+    //     .replace("<em>", "*")
+    //     .replace("</em>", "*")
+    //     .replace("<strong>", "**")
+    //     .replace("</strong>", "**")
+    //     .replace("<li>", "  - ")
+    //     .replace("</li>", "")
+    //     .replace("<ul>", "")
+    //     .replace("</ul>", "")
+    //     .replace("&amp;", "&")
+    //     .replace("&nbsp;", " ")
+    //     .replace("&ndash;", "-")
+    //     .replace("&ge;", "≥")
+    // );
+
 
     parsed_content
 }
