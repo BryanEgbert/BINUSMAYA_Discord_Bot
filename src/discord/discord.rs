@@ -20,7 +20,7 @@ use std::{
 
 use crate::discord::commands::{
     about::*, add::*, announcement::*, classes::*, details::*, ongoing::*, ping::*, register::*,
-    schedule::*, upcoming::*,
+    schedule::*, upcoming::*, test::*
 };
 use crate::{
     binusmaya::*,
@@ -53,7 +53,7 @@ impl TypeMapKey for ShardManagerContainer {
 pub struct General;
 
 #[group]
-#[commands(schedule, details, classes, ongoing, upcoming, announcement)]
+#[commands(schedule, details, classes, ongoing, upcoming, announcement, test)]
 pub struct Binus;
 
 pub struct Handler;
