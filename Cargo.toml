@@ -1,7 +1,7 @@
 [package]
 name = "BINUSMAYA_Discord_Bot"
 authors = ["Bryan Egbert"]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 license = "GPL-3.0"
 
@@ -19,4 +19,4 @@ csv-async = "1.2"
 chrono = "0.4"
 futures = "0.3"
 lazy_static = "1.4"
-scraper = "0.12"
+pcre2 = "0.2" 
