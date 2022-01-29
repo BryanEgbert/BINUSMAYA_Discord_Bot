@@ -55,40 +55,7 @@ fn parse_html(content: &str) -> String {
         }
 
         parsed_content.push('\n');        
-        println!("open: {:?}\tcontent:{:?}\tclose: {:?}", std::str::from_utf8(&caps["open_tag"]).unwrap(), std::str::from_utf8(&caps["inner_html"]).unwrap(), std::str::from_utf8(&caps["close_tag"]).unwrap());
     }
-    // let v: Vec<&str> = content.split_inclusive('>').collect();
-    // println!("{:?}", &v);
-
-    // v.clone().iter().enumerate().for_each(|(i, string)| {
-    //     let owned_string = string.to_owned();
-    //     if owned_string.contains("<p>") || owned_string.contains("</p>") || owned_string.contains("<div>") || owned_string.contains("</div>") || owned_string.contains("<ul>") || owned_string.contains("</ul>") || owned_string.contains("<li>") {
-    //         v[i] = v[i].replace("<p>", "").as_str();
-    //     }
-
-    // });
-
-    // parsed_content.push_str(&content
-    //     .replace("<p>", "")
-    //     .replace("</p>", "")
-    //     .replace("<div>", "")
-    //     .replace("</div>", "")
-    //     .replace("<br>", "\n")
-    //     .replace("<br />", "\n")
-    //     .replace("<em>", "*")
-    //     .replace("</em>", "*")
-    //     .replace("<strong>", "**")
-    //     .replace("</strong>", "**")
-    //     .replace("<li>", "  - ")
-    //     .replace("</li>", "")
-    //     .replace("<ul>", "")
-    //     .replace("</ul>", "")
-    //     .replace("&amp;", "&")
-    //     .replace("&nbsp;", " ")
-    //     .replace("&ndash;", "-")
-    //     .replace("&ge;", "≥")
-    // );
-
 
     parsed_content
 }
