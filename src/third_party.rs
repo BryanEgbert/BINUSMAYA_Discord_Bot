@@ -178,7 +178,7 @@ impl Selenium {
 
         self.driver.get(link).await?;
 
-        if link.eq(&NEW_BINUSMAYA) {
+        if link.eq(NEW_BINUSMAYA) {
             let mcr_login_btn = self
                 .driver
                 .find_element(By::ClassName("button--azure--ad"))

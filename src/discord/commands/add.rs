@@ -17,11 +17,12 @@ use crate::{
     third_party::{BrowserMobProxy, Selenium, Status},
 };
 
+#[derive(Debug)]
 enum CookieOutput<T, C> {
 	Out(T, C)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Binusmaya {
     NewBinusmaya,
     OldBinusmaya
@@ -126,6 +127,7 @@ async fn launch_selenium(
 	);
 
     let cookie = selenium.get_cookie().await?;
+    println!("{:?}", cookie);
 
     selenium.quit().await?;
 
@@ -193,6 +195,7 @@ async fn write_user_data(
             let user_data = OLDBINUSMAYA_USER_DATA.clone();
 
             user_data.lock().await.insert(*msg.author.id.as_u64(), user_info);
+            println!("{:?}", user_data.lock().await);
         },
     }
 
@@ -221,22 +224,36 @@ async fn add_account(
     })
     .await?;
 
+    println!("{:?}", handle);
+
     match handle {
         CookieOutput::Out(Status::VALID(output), cookie) => {
-            let user_data = NEWBINUSMAYA_USER_DATA.clone();
-            if !user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-                write_user_data(&binus_ver.clone(), &proxy, &msg, &user_credential,cookie).await.unwrap();
-
-                proxy.delete_proxy().await?;
-
-                msg.author
-                    .dm(&ctx, |m| {
-                        m.embed(|e| {
-                            e.colour(PRIMARY_COLOR)
-                                .field("Account Registered", output, false)
+            println!("success");
+            match binus_ver {
+                Binusmaya::NewBinusmaya => {
+                    write_user_data(&binus_ver.clone(), &proxy, &msg, &user_credential,cookie).await.unwrap();
+    
+                    proxy.delete_proxy().await?;
+    
+                    msg.author
+                        .dm(&ctx, |m| {
+                            m.embed(|e| {
+                                e.colour(PRIMARY_COLOR)
+                                    .field("Account Registered", output, false)
+                            })
                         })
-                    })
-                    .await?;
+                        .await?;
+                },
+                Binusmaya::OldBinusmaya => {
+                    msg.author
+                        .dm(&ctx, |m| {
+                            m.embed(|e| {
+                                e.colour(PRIMARY_COLOR)
+                                    .field("Account Registered", output, false)
+                            })
+                        })
+                        .await?;
+                },
             }
         }
         CookieOutput::Out(Status::INVALID(output), _) => {
@@ -272,7 +289,6 @@ async fn add_account(
 #[only_in("dm")]
 #[description("Add BINUS account to discord bot")]
 #[usage("[email];[password]")]
-#[num_args(2)]
 async fn add(ctx: &Context, msg: &Message) -> CommandResult {
     msg.react(&ctx, '👍').await?;
 
@@ -293,6 +309,7 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let binusmaya_version = Binusmaya::from_str(&mci.data.values.get(0).unwrap()).unwrap();
+    println!("{:?}", binusmaya_version);
 
     mci.create_interaction_response(&ctx, |r| {
         r.kind(InteractionResponseType::UpdateMessage);
@@ -309,14 +326,79 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
                 password: user_credential[1].to_string()
             };
 
-            msg.channel_id.send_message(&ctx, |m| {
-                m.embed(|e| e
-                    .colour(PRIMARY_COLOR)
-                    .field("Registering...", "Please wait a few seconds", false)
-                )
-            }).await?;
+            match binusmaya_version {
+                Binusmaya::NewBinusmaya=> {
+                    if NEWBINUSMAYA_USER_DATA.lock().await.contains_key(msg.author.id.as_u64()) {
+                        let jwt_exp = NEWBINUSMAYA_USER_DATA
+                            .lock()
+                            .await
+                            .get(msg.author.id.as_u64())
+                            .unwrap()
+                            .last_registered
+                            .add(Duration::weeks(52));
+                        let now = chrono::offset::Local::now();
+                        if jwt_exp < now {
+                            msg.channel_id
+                                .send_message(&ctx, |m| {
+                                    m.embed(|e| {
+                                        e.colour(PRIMARY_COLOR).field(
+                                            "Registering...",
+                                            "Please wait a few seconds",
+                                            false,
+                                        )
+                                    })
+                                })
+                                .await?;
 
-            add_account(user_credential, binusmaya_version, msg, ctx).await.unwrap();            
+                        } else {
+                            msg.channel_id
+                                .send_message(&ctx, |m| {
+                                    m.embed(|e| {
+                                        e.colour(PRIMARY_COLOR).field(
+                                            "You've already registered",
+                                            format!(
+                                                "Please wait **{} days** to re-register your account",
+                                                jwt_exp.signed_duration_since(now).num_days()
+                                            ),
+                                            false,
+                                        )
+                                    })
+                                })
+                                .await?;
+                        }
+                    } else {
+                        msg.channel_id
+                            .send_message(&ctx, |m| {
+                                m.embed(|e| {
+                                    e.colour(PRIMARY_COLOR).field(
+                                        "Registering...",
+                                        "Please wait a few seconds",
+                                        false,
+                                    )
+                                })
+                            }
+                        )
+                        .await?;
+                    }
+
+                },
+                Binusmaya::OldBinusmaya => {
+                    msg.channel_id
+                        .send_message(&ctx, |m| {
+                            m.embed(|e| {
+                                e.colour(PRIMARY_COLOR).field(
+                                    "Registering...",
+                                    "Please wait a few seconds",
+                                    false,
+                                )
+                            })
+                        }
+                    ).await?;
+
+                    add_account(user_credential, binusmaya_version, msg, ctx).await.unwrap();            
+                }
+            }
+
         } else {
             msg.channel_id.send_message(&ctx, |m| {
                 m.embed(|e| e
@@ -330,57 +412,7 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
     }
 
 
-    if NEWBINUSMAYA_USER_DATA.lock().await.contains_key(msg.author.id.as_u64()) {
-        let jwt_exp = NEWBINUSMAYA_USER_DATA
-            .lock()
-            .await
-            .get(msg.author.id.as_u64())
-            .unwrap()
-            .last_registered
-            .add(Duration::weeks(52));
-        let now = chrono::offset::Local::now();
-        if jwt_exp < now {
-            msg.channel_id
-                .send_message(&ctx, |m| {
-                    m.embed(|e| {
-                        e.colour(PRIMARY_COLOR).field(
-                            "Registering...",
-                            "Please wait a few seconds",
-                            false,
-                        )
-                    })
-                })
-                .await?;
-
-        } else {
-            msg.channel_id
-                .send_message(&ctx, |m| {
-                    m.embed(|e| {
-                        e.colour(PRIMARY_COLOR).field(
-                            "You've already registered",
-                            format!(
-                                "Please wait **{} days** to re-register your account",
-                                jwt_exp.signed_duration_since(now).num_days()
-                            ),
-                            false,
-                        )
-                    })
-                })
-                .await?;
-        }
-    } else {
-        msg.channel_id
-            .send_message(&ctx, |m| {
-                m.embed(|e| {
-                    e.colour(PRIMARY_COLOR).field(
-                        "Registering...",
-                        "Please wait a few seconds",
-                        false,
-                    )
-                })
-            })
-            .await?;
-    }
-
+    // 
+       
     Ok(())
 }

@@ -41,13 +41,13 @@ pub struct NewBinusmayaUserAuthInfo {
     pub last_registered: DateTime<Local>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserCredential {
     pub email: String,
     pub password: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct OldBinusmayaUserAuthInfo {
     pub user_credential: UserCredential,
     pub cookie: Option<String>
@@ -218,7 +218,7 @@ pub async fn run() {
         Err(e) => panic!("Couldn't get app info: {:?}", e),
     };
     let framework = StandardFramework::new()
-        .configure(|c| c.delimiter(';').prefix("=").owners(owners))
+        .configure(|c| c.delimiter(';').prefix("!").owners(owners))
         .after(after_hook)
         .group(&GENERAL_GROUP)
         .group(&BINUS_GROUP)
