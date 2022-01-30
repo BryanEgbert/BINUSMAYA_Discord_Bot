@@ -24,22 +24,33 @@ use crate::discord::commands::{
 };
 use crate::{
     binusmaya::*,
-    consts::{LOGIN_FILE, USER_DATA, USER_FILE},
+    consts::{LOGIN_FILE, NEWBINUSMAYA_USER_DATA, USER_FILE},
 };
 
 use std::env;
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct UserRecord {
+pub struct NewBinusmayaUserRecord {
     pub member_id: u64,
     pub auth: String,
     pub last_registered: DateTime<Local>,
 }
 
-#[derive(Debug)]
-pub struct UserAuthInfo {
+pub struct NewBinusmayaUserAuthInfo {
     pub auth: String,
     pub last_registered: DateTime<Local>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserCredential {
+    pub email: String,
+    pub password: String
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OldBinusmayaUserAuthInfo {
+    pub user_credential: UserCredential,
+    pub cookie: Option<String>
 }
 
 pub struct ShardManagerContainer;
@@ -65,7 +76,7 @@ async fn update_student_progress_daily() {
         if let Ok(time) = metadata.modified() {
             let last_login = DateTime::<Local>::from(time).date();
             if last_login.succ().eq(&chrono::offset::Local::now().date()) {
-                stream::iter(USER_DATA.lock().await.iter())
+                stream::iter(NEWBINUSMAYA_USER_DATA.lock().await.iter())
                     .for_each_concurrent(8, |(member_id, user_auth_info)| async move {
                         println!("Updating student progress for {}", member_id);
 
@@ -141,12 +152,12 @@ impl EventHandler for Handler {
         let rdr = AsyncReaderBuilder::new()
             .has_headers(false)
             .create_deserializer(content.as_bytes());
-        let mut records = rdr.into_deserialize::<UserRecord>();
+        let mut records = rdr.into_deserialize::<NewBinusmayaUserRecord>();
         while let Some(record) = records.next().await {
             let record = record.unwrap();
-            USER_DATA.lock().await.insert(
+            NEWBINUSMAYA_USER_DATA.lock().await.insert(
                 record.member_id,
-                UserAuthInfo {
+                NewBinusmayaUserAuthInfo {
                     auth: record.auth,
                     last_registered: record.last_registered,
                 },

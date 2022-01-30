@@ -17,7 +17,7 @@ pub enum CookieOutput<T, C> {
 async fn launch_selenium(
     email: String,
     password: String,
-) -> Result<CookieOutput<Status<String>, Option<Vec<Cookie>>>, WebDriverError> {
+) -> Result<CookieOutput<Status<String>, Option<Cookie>>, WebDriverError> {
     let caps = DesiredCapabilities::chrome();
     let selenium = Selenium::init(
         WebDriver::new("http://localhost:4444", &caps).await?,
@@ -32,7 +32,7 @@ async fn launch_selenium(
     let is_valid = selenium.run(&OLD_BINUSMAYA.to_string()).await?;
 
 	if let Status::VALID(_) = is_valid {
-		cookie = Some(selenium.get_cookies().await?);
+		cookie = Some(selenium.get_cookie().await?);
 	} else {
 		cookie = None;
 	}

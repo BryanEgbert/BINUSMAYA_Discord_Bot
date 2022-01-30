@@ -8,7 +8,7 @@ use std::{ops::Add, str::FromStr};
 use crate::discord::helper::Nav;
 use crate::{
     binusmaya::BinusmayaAPI,
-    consts::{PRIMARY_COLOR, USER_DATA},
+    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
 };
 
 #[command]
@@ -24,7 +24,7 @@ async fn details(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 
     msg.react(&ctx, '👍').await?;
 
-    let user_data = USER_DATA.clone();
+    let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
         let jwt_exp = user_data

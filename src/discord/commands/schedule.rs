@@ -9,7 +9,7 @@ use std::{ops::Add, str::FromStr};
 
 use crate::{
     binusmaya::BinusmayaAPI,
-    consts::{PRIMARY_COLOR, USER_DATA},
+    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
     discord::helper::Nav,
 };
 
@@ -22,7 +22,7 @@ use crate::{
 #[example("2022-01-05")]
 async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let date = args.single::<String>().unwrap();
-    let user_data = USER_DATA.clone();
+    let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     msg.react(&ctx, '👍').await?;
 

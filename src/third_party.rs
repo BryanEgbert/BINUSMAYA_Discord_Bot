@@ -206,8 +206,8 @@ impl Selenium {
         Ok(status)
     }
 
-    pub async fn get_cookies(&self) -> WebDriverResult<Vec<Cookie>> {
-        Ok(self.driver.get_cookies().await?)
+    pub async fn get_cookie(&self) -> WebDriverResult<Cookie> {
+        Ok(self.driver.get_cookie("PHPSESSID").await?)
     }
 
     pub async fn quit(self) -> WebDriverResult<()> {

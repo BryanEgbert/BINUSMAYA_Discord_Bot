@@ -9,7 +9,7 @@ use std::ops::Add;
 
 use crate::{
     binusmaya::{AnnouncementDetails, AnnouncementResponse, BinusmayaAPI},
-    consts::{PRIMARY_COLOR, USER_DATA},
+    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
 };
 
 fn parse_html(content: &str) -> String {
@@ -118,7 +118,7 @@ async fn send_announcement_details(
 async fn announcement(ctx: &Context, msg: &Message) -> CommandResult {
     msg.react(&ctx, '👍').await?;
 
-    let user_data = USER_DATA.clone();
+    let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
         let jwt_exp = user_data

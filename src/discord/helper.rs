@@ -21,7 +21,7 @@ impl Display for Nav {
 }
 
 #[derive(Debug)]
-pub struct ParseError(String);
+pub struct ParseError(pub String);
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
