@@ -1,5 +1,6 @@
 use chrono::{Duration, Local};
 use csv_async::AsyncWriterBuilder;
+use magic_crypt::MagicCryptTrait;
 use serenity::{
     framework::standard::{macros::command, CommandResult},
     model::prelude::*,
@@ -11,8 +12,8 @@ use std::{error::Error, fs::OpenOptions};
 use thirtyfour::{error::WebDriverError, Capabilities, DesiredCapabilities, Proxy, WebDriver, Cookie};
 
 use crate::{
-    consts::{CHROME_BINARY, NEW_BINUSMAYA, PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA, USER_FILE, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA},
-    discord::{discord::{NewBinusmayaUserAuthInfo, NewBinusmayaUserRecord, UserCredential, OldBinusmayaUserAuthInfo}, helper::ParseError},
+    consts::{CHROME_BINARY, NEW_BINUSMAYA, PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, MAGIC_CRYPT},
+    discord::{discord::{NewBinusmayaUserAuthInfo, NewBinusmayaUserRecord, UserCredential, OldBinusmayaUserRecord}, helper::ParseError},
     dropbox_api,
     third_party::{BrowserMobProxy, Selenium, Status},
 };
@@ -114,7 +115,7 @@ async fn launch_selenium(
     caps.set_headless()?;
 
     let selenium = Selenium::init(
-        WebDriver::new("http://localhost:4444", &caps).await?,
+        WebDriver::new(CHROME_SERVER_URL, &caps).await?,
         user_credential.email.clone(),
         user_credential.password.clone(),
     );
@@ -127,7 +128,6 @@ async fn launch_selenium(
 	);
 
     let cookie = selenium.get_cookie().await?;
-    println!("{:?}", cookie);
 
     selenium.quit().await?;
 
@@ -172,30 +172,49 @@ async fn write_user_data(
         
             let mut file = OpenOptions::new()
                 .append(true)
-                .open("user_data.csv")
+                .open(NEWBINUSMAYA_USER_FILE)
                 .unwrap();
         
             if let Err(err) = write!(
-                file,
+                file,   
                 "{}",
                 String::from_utf8(wtr.into_inner().await?).unwrap()
             ) {
                 eprintln!("Error when writing to a file: {}", err);
             }
         
-            let res = dropbox_api::upload_file(USER_FILE.to_string()).await?;
+            let res = dropbox_api::upload_file(NEWBINUSMAYA_USER_FILE.to_string()).await?;
             println!("File upload status code: {}", res);
         },
         Binusmaya::OldBinusmaya => {
-            let user_info = OldBinusmayaUserAuthInfo {
-                user_credential: user_credential.clone(),
-                cookie: Some(cookie.value().as_str().unwrap().to_string()),
+            let encrypted_user_credential = UserCredential {
+                email: user_credential.email.clone(),
+                password: MAGIC_CRYPT.encrypt_str_to_base64(user_credential.password.clone())
+            };
+
+            let user_record = OldBinusmayaUserRecord {
+                member_id: *msg.author.id.as_u64(),
+                user_credential: encrypted_user_credential
             };
 
             let user_data = OLDBINUSMAYA_USER_DATA.clone();
+            user_data.lock().await.insert(*msg.author.id.as_u64(), cookie);
 
-            user_data.lock().await.insert(*msg.author.id.as_u64(), user_info);
-            println!("{:?}", user_data.lock().await);
+            let mut wtr = AsyncWriterBuilder::new()
+                .has_headers(false)
+                .create_serializer(vec![]);
+
+            wtr.serialize(user_record).await?;
+
+            let mut file = OpenOptions::new()
+                .append(true)
+                .open(OLDBINUSMAYA_USER_FILE)
+                .unwrap();
+            
+            if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().await?).unwrap()) {
+                eprintln!("Error when writing to a file: {}", err);
+            }
+                
         },
     }
 
@@ -224,16 +243,11 @@ async fn add_account(
     })
     .await?;
 
-    println!("{:?}", handle);
-
     match handle {
         CookieOutput::Out(Status::VALID(output), cookie) => {
-            println!("success");
             match binus_ver {
                 Binusmaya::NewBinusmaya => {
-                    write_user_data(&binus_ver.clone(), &proxy, &msg, &user_credential,cookie).await.unwrap();
-    
-                    proxy.delete_proxy().await?;
+                    write_user_data(&binus_ver, &proxy, &msg, &user_credential, cookie).await.unwrap();
     
                     msg.author
                         .dm(&ctx, |m| {
@@ -245,6 +259,8 @@ async fn add_account(
                         .await?;
                 },
                 Binusmaya::OldBinusmaya => {
+                    write_user_data(&binus_ver, &proxy, &msg, &user_credential, cookie).await.unwrap();
+
                     msg.author
                         .dm(&ctx, |m| {
                             m.embed(|e| {
@@ -265,8 +281,6 @@ async fn add_account(
                     })
                 })
                 .await?;
-
-            proxy.delete_proxy().await?;
         }
         CookieOutput::Out(Status::ERROR(output), _) => {
             msg.author
@@ -277,10 +291,10 @@ async fn add_account(
                     })
                 })
                 .await?;
-
-            proxy.delete_proxy().await?;
         }
     }
+
+    proxy.delete_proxy().await?;
 
     Ok(())
 }
@@ -309,10 +323,9 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let binusmaya_version = Binusmaya::from_str(&mci.data.values.get(0).unwrap()).unwrap();
-    println!("{:?}", binusmaya_version);
 
     mci.create_interaction_response(&ctx, |r| {
-        r.kind(InteractionResponseType::UpdateMessage);
+        r.kind(InteractionResponseType::ChannelMessageWithSource);
         r.interaction_response_data(|d| 
             d.content("Please enter your Binus email and password with format of `[email] [password]`")
         )

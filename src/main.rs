@@ -6,14 +6,16 @@ pub mod discord;
 mod dropbox_api;
 pub mod third_party;
 
-#[macro_use]
-extern crate lazy_static;
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate magic_crypt;
 
 use discord::discord::run;
 use std::process::Command;
 use tokio::fs::{write, File};
 
-use consts::{LOGIN_FILE, USER_FILE};
+use consts::{LOGIN_FILE, NEWBINUSMAYA_USER_FILE};
+
+use crate::consts::OLDBINUSMAYA_USER_FILE;
 
 #[tokio::main]
 async fn main() {
@@ -45,14 +47,16 @@ async fn fetch_file() {
         .await
         .expect("Error in creating login.txt");
 
-    File::create(USER_FILE).await.expect("Error in creating ");
+    File::create(NEWBINUSMAYA_USER_FILE).await.expect("Error in creating new binusmaya file");
 
-    let user_content = dropbox_api::download_file(USER_FILE.to_string())
+    File::create(OLDBINUSMAYA_USER_FILE).await.expect("Error in creating old binusmaya file");
+
+    let user_content = dropbox_api::download_file(NEWBINUSMAYA_USER_FILE.to_string())
         .await
         .unwrap();
 
     if let Some(content) = user_content {
-        write(USER_FILE, content.as_bytes()).await.unwrap();
+        write(NEWBINUSMAYA_USER_FILE, content.as_bytes()).await.unwrap();
     }
 
     println!("File created successfully");
