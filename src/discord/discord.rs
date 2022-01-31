@@ -132,8 +132,12 @@ async fn update_cookie() {
                 crate::third_party::Status::VALID(_) => {
                     OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, selenium.get_cookie().await.unwrap());
                 },
-                crate::third_party::Status::INVALID(_) => todo!(),
-                crate::third_party::Status::ERROR(_) => todo!(),
+                crate::third_party::Status::INVALID(_) => {
+                    continue;
+                },
+                crate::third_party::Status::ERROR(_) => {
+                    continue;
+                },
             }
         }
     }
