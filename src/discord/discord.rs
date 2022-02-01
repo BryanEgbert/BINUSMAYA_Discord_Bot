@@ -22,7 +22,7 @@ use std::{
 use crate::{discord::commands::{
     about::*, add::*, announcement::*, classes::*, details::*, ongoing::*, ping::*, register::*,
     schedule::*, upcoming::*, test::*
-}, consts::{OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, MAGIC_CRYPT}, third_party::Selenium, binusmaya::*};
+}, consts::{OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, MAGIC_CRYPT}, third_party::Selenium, api::new_binusmaya_api::*};
 
 use std::env;
 
@@ -71,7 +71,7 @@ async fn update_student_progress() {
         .for_each_concurrent(8, |(member_id, user_auth_info)| async move {
             println!("Updating student progress for {}", member_id);
 
-            let binusmaya_api = BinusmayaAPI {
+            let binusmaya_api = NewBinusmayaAPI {
                 token: user_auth_info.auth.to_string(),
             };
             let schedule = binusmaya_api
@@ -151,6 +151,7 @@ async fn daily_update() {
             let last_login = DateTime::<Local>::from(time).date();
             if last_login.succ().eq(&chrono::offset::Local::now().date()) {
                 update_student_progress().await;
+                update_cookie().await;
 
                 File::create(LOGIN_FILE).unwrap_or_else(|e| {
                     panic!("Error in creating file: {:?}", e);

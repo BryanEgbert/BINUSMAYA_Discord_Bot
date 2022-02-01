@@ -36,6 +36,7 @@ pub struct RoleCategory {
     academic_career_id: String,
     academic_career: String,
     academic_career_desc: String,
+    #[serde(skip_deserializing)]
     institution_id: Option<String>,
     institution: String,
     institution_desc: String,
@@ -623,7 +624,7 @@ pub struct StudentProgressPayload {
 }
 
 #[derive(Clone)]
-pub struct BinusmayaAPI {
+pub struct NewBinusmayaAPI {
     pub token: String,
 }
 
@@ -719,7 +720,7 @@ impl RoleActivity {
     }
 }
 
-impl BinusmayaAPI {
+impl NewBinusmayaAPI {
     fn init_user_profile_header(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36 OPR/81.0.4196.61"));
@@ -745,7 +746,7 @@ impl BinusmayaAPI {
         let client = reqwest::Client::new();
         let user_profile = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-profile-prod/UserProfile")
-            .headers(BinusmayaAPI::init_user_profile_header(self))
+            .headers(NewBinusmayaAPI::init_user_profile_header(self))
             .send()
             .await?
             .json::<UserProfile>()
@@ -756,7 +757,7 @@ impl BinusmayaAPI {
 
     async fn init_full_header(&self, user_profile: &UserProfile) -> HeaderMap {
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_user_profile_header(self));
+        headers.extend(NewBinusmayaAPI::init_user_profile_header(self));
         headers.insert(
             HeaderName::from_static("roid"),
             HeaderValue::from_str(
@@ -773,28 +774,28 @@ impl BinusmayaAPI {
         );
         headers.insert(
             HeaderName::from_static("rolename"),
-            HeaderValue::from_static("Student"),
+            HeaderValue::from_str(user_profile.role_categories[0].roles[0].name.as_str()).unwrap(),
         );
         headers.insert(
             HeaderName::from_static("institution"),
-            HeaderValue::from_static("BNS01"),
+            HeaderValue::from_str(user_profile.role_categories[0].roles[0].institution.as_str()).unwrap(),
         );
         headers.insert(
             HeaderName::from_static("academiccareer"),
-            HeaderValue::from_static("RS1"),
+            HeaderValue::from_str(user_profile.role_categories[0].roles[0].academic_career.as_str()).unwrap(    ),
         );
 
         headers
     }
 
     async fn get_academic_period(&self) -> Result<Option<String>, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
         let client = reqwest::Client::new();
         let response = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/AcademicPeriod/Student")
-            .headers(BinusmayaAPI::init_full_header(self, &user_profile).await)
+            .headers(NewBinusmayaAPI::init_full_header(self, &user_profile).await)
             .send()
             .await?
             .json::<Vec<AcademicPeriod>>()
@@ -812,11 +813,11 @@ impl BinusmayaAPI {
     }
 
     pub async fn get_schedule(&self, date: &NaiveDate) -> Result<Option<Schedule>, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
         headers.insert(
             HOST,
             HeaderValue::from_static("func-bm7-schedule-prod.azurewebsites.net"),
@@ -853,12 +854,12 @@ impl BinusmayaAPI {
     }
 
     pub async fn get_resource(&self, session_id: String) -> Result<SessionDetails, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::new();
         let session_details = client
@@ -872,12 +873,12 @@ impl BinusmayaAPI {
     }
 
     pub async fn get_classes(&self) -> Result<ClassVec, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::builder()
             .connection_verbose(true)
@@ -903,12 +904,12 @@ impl BinusmayaAPI {
         &self,
         class_id: String,
     ) -> Result<ClassDetails, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::builder()
             .connection_verbose(true)
@@ -926,12 +927,12 @@ impl BinusmayaAPI {
         &self,
         resource_id: &String,
     ) -> Result<reqwest::StatusCode, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::new();
         let response = client
@@ -949,12 +950,12 @@ impl BinusmayaAPI {
     }
 
     pub async fn get_ongoing_sessions(&self) -> Result<OngoingClassResponse, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::new();
 
@@ -968,12 +969,12 @@ impl BinusmayaAPI {
     }
 
     pub async fn get_upcoming_sessions(&self) -> Result<Option<UpcomingClass>, reqwest::Error> {
-        let user_profile: UserProfile = BinusmayaAPI::get_user_profile(self)
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
             .await
             .expect("Error in getting user profile");
 
         let mut headers = HeaderMap::new();
-        headers.extend(BinusmayaAPI::init_full_header(self, &user_profile).await);
+        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
 
         let client = reqwest::Client::new();
         let res = client
@@ -1032,7 +1033,7 @@ mod tests {
     #[tokio::test]
     async fn get_announcement_test() {
         let token = env::var("BEARER_TOKEN").unwrap();
-        let binusmaya_api = BinusmayaAPI { token };
+        let binusmaya_api = NewBinusmayaAPI { token };
         let res = binusmaya_api.get_announcement(1).await.unwrap();
         println!("{:#?}", res);
         assert_eq!(res.page_number, 1);
@@ -1041,7 +1042,7 @@ mod tests {
     #[tokio::test]
     async fn get_announcement_details() {
         let token = env::var("BEARER_TOKEN").unwrap();
-        let binusmaya_api = BinusmayaAPI { token };
+        let binusmaya_api = NewBinusmayaAPI { token };
         let res = binusmaya_api
             .get_announcement_details(&String::from("0167b34e-bdfc-4a41-8a94-bf08061366f4"))
             .await

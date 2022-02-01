@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-pub mod binusmaya;
+pub mod api;
 pub mod consts;
 pub mod discord;
-mod dropbox_api;
 pub mod third_party;
 
 #[macro_use] extern crate lazy_static;
@@ -51,7 +50,7 @@ async fn fetch_file() {
 
     File::create(OLDBINUSMAYA_USER_FILE).await.expect("Error in creating old binusmaya file");
 
-    let user_content = dropbox_api::download_file(NEWBINUSMAYA_USER_FILE.to_string())
+    let user_content = api::dropbox_api::download_file(NEWBINUSMAYA_USER_FILE.to_string())
         .await
         .unwrap();
 

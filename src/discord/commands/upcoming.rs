@@ -8,7 +8,7 @@ use serenity::{
 };
 
 use crate::{
-    binusmaya::BinusmayaAPI,
+    api::new_binusmaya_api::NewBinusmayaAPI,
     consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
 };
 
@@ -30,7 +30,7 @@ async fn upcoming(ctx: &Context, msg: &Message) -> CommandResult {
         let now = chrono::offset::Local::now();
 
         if jwt_exp > now {
-            let binusmaya_api = BinusmayaAPI {
+            let binusmaya_api = NewBinusmayaAPI {
                 token: user_data
                     .lock()
                     .await

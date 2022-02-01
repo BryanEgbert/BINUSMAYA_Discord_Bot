@@ -8,7 +8,7 @@ use serenity::{
 use std::ops::Add;
 
 use crate::{
-    binusmaya::{AnnouncementDetails, AnnouncementResponse, BinusmayaAPI},
+    api::new_binusmaya_api::{AnnouncementDetails, AnnouncementResponse, NewBinusmayaAPI},
     consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
 };
 
@@ -63,7 +63,7 @@ fn parse_html(content: &str) -> String {
 async fn send_announcement_details(
     ctx: &Context,
     msg: &Message,
-    binusmaya_api: &BinusmayaAPI,
+    binusmaya_api: &NewBinusmayaAPI,
     announcement_list: &AnnouncementResponse,
 ) {
     let announcement_details: Option<AnnouncementDetails>;
@@ -130,7 +130,7 @@ async fn announcement(ctx: &Context, msg: &Message) -> CommandResult {
             .add(Duration::weeks(52));
         let now = chrono::offset::Local::now();
         if jwt_exp > now {
-            let binusmaya_api = BinusmayaAPI {
+            let binusmaya_api = NewBinusmayaAPI {
                 token: user_data
                     .lock()
                     .await

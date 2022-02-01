@@ -8,7 +8,7 @@ use serenity::{
 use std::{ops::Add, str::FromStr};
 
 use crate::{
-    binusmaya::BinusmayaAPI,
+    api::new_binusmaya_api::NewBinusmayaAPI,
     consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
     discord::helper::Nav,
 };
@@ -37,7 +37,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
         let now = chrono::offset::Local::now();
         if jwt_exp > now {
             let mut parsed_date = NaiveDate::parse_from_str(&date, "%Y-%-m-%-d").unwrap();
-            let binusmaya_api = BinusmayaAPI {
+            let binusmaya_api = NewBinusmayaAPI {
                 token: user_data
                     .lock()
                     .await
