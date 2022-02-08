@@ -1,11 +1,3 @@
-pub mod about;
-pub mod add;
-pub mod announcement;
-pub mod classes;
-pub mod details;
-pub mod ongoing;
-pub mod ping;
-pub mod register;
-pub mod schedule;
-pub mod test;
-pub mod upcoming;
+pub mod general;
+pub mod old_binusmaya;
+pub mod new_binusmaya;

@@ -2,7 +2,6 @@ use chrono::{DateTime, Duration, Local, NaiveDate};
 use csv_async::AsyncReaderBuilder;
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use magic_crypt::MagicCryptTrait;
 use serenity::framework::standard::{
     help_commands,
     macros::{group, help, hook},
@@ -11,18 +10,26 @@ use serenity::framework::standard::{
 use serenity::{
     async_trait, client::bridge::gateway::ShardManager, http::Http, model::prelude::*, prelude::*,
 };
-use thirtyfour::{WebDriver, DesiredCapabilities};
 use std::{
     collections::HashSet,
     fs::{metadata, read_to_string, File},
     sync::Arc,
-    thread::{self, sleep},
+    thread::{self, sleep}, process::Command,
 };
+use tokio::fs::{write, File as TokioFile};
 
 use crate::{discord::commands::{
-    about::*, add::*, announcement::*, classes::*, details::*, ongoing::*, ping::*, register::*,
-    schedule::*, upcoming::*, test::*
-}, consts::{OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, MAGIC_CRYPT}, third_party::Selenium, api::new_binusmaya_api::*};
+    general::{
+        about::*, add::*, ping::*, register::*
+    },
+    new_binusmaya::{
+        announcement::*, classes::*, details::*, ongoing::*, 
+        schedule::*, upcoming::*
+    },
+    old_binusmaya::{
+        sat::*
+    }
+}, consts::{OLDBINUSMAYA_USER_FILE, OLDBINUSMAYA_USER_DATA, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData, OldBinusmayaApi}, self}};
 
 use std::env;
 
@@ -39,10 +46,34 @@ pub struct UserCredential {
     pub password: String
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserBinusianData {
+    pub binusian_id: String,
+    pub display_name: String,
+    pub user_id: String,
+    pub role_id: u8,
+    pub specific_role_id: u8,
+}
+
+impl UserBinusianData {
+    pub fn init_data(binusian_data: &BinusianData) -> Self {
+        let user_binusian_data = UserBinusianData {
+            binusian_id: binusian_data.binusian_id.clone(),
+            display_name: format!("{} {}", binusian_data.first_name, binusian_data.last_name),
+            user_id: binusian_data.nim.clone(),
+            role_id: 2,
+            specific_role_id: 104,
+        };
+
+        user_binusian_data
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OldBinusmayaUserRecord {
     pub member_id: u64,
-    pub user_credential: UserCredential
+    pub user_credential: UserCredential,
+    pub binusian_data: UserBinusianData
 }
 
 pub struct NewBinusmayaUserAuthInfo {
@@ -61,10 +92,61 @@ impl TypeMapKey for ShardManagerContainer {
 pub struct General;
 
 #[group]
-#[commands(schedule, details, classes, ongoing, upcoming, announcement, test)]
-pub struct Binus;
+#[commands(schedule, details, classes, ongoing, upcoming, announcement)]
+pub struct NewBinusmaya;
+
+#[group]
+#[commands(sat)]
+pub struct OldBinusmaya;
 
 pub struct Handler;
+
+fn start_third_party_apps() {
+    Command::new("./chromedriver")
+        .arg("--port=4444")
+        .spawn()
+        .expect("Failed to run chrome driver");
+
+    Command::new("sh")
+        .args([
+            "./browsermob-proxy-2.1.4/bin/browsermob-proxy",
+            "--address",
+            "localhost",
+            "--port",
+            "8082",
+        ])
+        .spawn()
+        .expect("Failed to start browsermob-proxy");
+}
+
+async fn fetch_file() {
+    TokioFile::create(LOGIN_FILE)
+        .await
+        .expect("Error in creating login.txt");
+
+    TokioFile::create(NEWBINUSMAYA_USER_FILE).await.expect("Error in creating new binusmaya file");
+
+    TokioFile::create(OLDBINUSMAYA_USER_FILE).await.expect("Error in creating old binusmaya file");
+    
+
+    let new_binusmaya_user_content = api::dropbox_api::download_file(NEWBINUSMAYA_USER_FILE.to_string())
+        .await
+        .unwrap();
+
+    if let Some(content) = new_binusmaya_user_content {
+        write(NEWBINUSMAYA_USER_FILE, content.as_bytes()).await.unwrap();
+    }
+
+    let old_binusmaya_user_content = api::dropbox_api::download_file(OLDBINUSMAYA_USER_FILE.to_string())
+        .await
+        .unwrap();
+
+    if let Some(content) = old_binusmaya_user_content {
+        write(OLDBINUSMAYA_USER_FILE, content.as_bytes()).await.unwrap();
+    }
+    
+    println!("File created successfully");
+}
 
 async fn update_student_progress() {
     stream::iter(NEWBINUSMAYA_USER_DATA.lock().await.iter())
@@ -120,26 +202,11 @@ async fn update_cookie() {
         .has_headers(false)
         .create_deserializer(oldbinusmaya_content.as_bytes());
 
-    let caps = DesiredCapabilities::chrome();
     let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
     while let Some(record) = records.next().await {
         let record = record.unwrap();
-        println!("{:?}", record);
-        let selenium = Selenium::init(WebDriver::new(CHROME_SERVER_URL, &caps).await.unwrap(), record.user_credential.email, MAGIC_CRYPT.decrypt_base64_to_string(record.user_credential.password).unwrap());
-        let is_valid = selenium.run(&OLD_BINUSMAYA.to_string()).await;
-        if let Ok(status) = is_valid {
-            match status {
-                crate::third_party::Status::VALID(_) => {
-                    OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, selenium.get_cookie().await.unwrap());
-                },
-                crate::third_party::Status::INVALID(_) => {
-                    continue;
-                },
-                crate::third_party::Status::ERROR(_) => {
-                    continue;
-                },
-            }
-        }
+        let old_binusmaya_api = OldBinusmayaApi::login(&record.binusian_data, &record.user_credential).await;
+        OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
     }
 }
 
@@ -168,11 +235,15 @@ async fn daily_update() {
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, _ctx: Context, data_about_bot: Ready) {
+        fetch_file().await;
+        start_third_party_apps();
+        
         let newbinusmaya_content = read_to_string(NEWBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
 
         let rdr = AsyncReaderBuilder::new()
             .has_headers(false)
             .create_deserializer(newbinusmaya_content.as_bytes());
+
         let mut records = rdr.into_deserialize::<NewBinusmayaUserRecord>();
         while let Some(record) = records.next().await {
             let record = record.unwrap();
@@ -184,6 +255,8 @@ impl EventHandler for Handler {
                 },
             );
         }
+
+        update_cookie().await;
 
         tokio::spawn(async move {
             println!("{:?} is running", thread::current().id());
@@ -217,6 +290,8 @@ async fn after_hook(_: &Context, _: &Message, cmd_name: &str, error: Result<(), 
 }
 
 pub async fn run() {
+    let _ = env::var("SECRET_KEY").expect("expect SECRET KEY in env var");
+
     let token = env::var("DISCORD_TOKEN").expect("invalid token");
     let app_id: u64 = env::var("APPLICATION_ID")
         .expect("Expected application id in env")
@@ -242,7 +317,8 @@ pub async fn run() {
         .configure(|c| c.delimiter(';').prefix("=").owners(owners))
         .after(after_hook)
         .group(&GENERAL_GROUP)
-        .group(&BINUS_GROUP)
+        .group(&NEWBINUSMAYA_GROUP)
+        .group(&OLDBINUSMAYA_GROUP)
         .help(&HELP);
 
     let mut client = Client::builder(token)

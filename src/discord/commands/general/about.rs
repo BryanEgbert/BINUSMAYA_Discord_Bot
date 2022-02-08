@@ -14,7 +14,7 @@ async fn about(ctx: &Context, msg: &Message) -> CommandResult {
 		m.embed(|e| e
 			.colour(PRIMARY_COLOR)
 			.field("Made By:", "Bryan Egbert `PlayerPlay#9549`", false)
-			.field("Version:", "`v1.2.0`", true)
+			.field("Version:", "`v1.3.0`", true)
 			.field("Releases", "[Click here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot/releases)", true)
 			.field("Bot General Info", "[Click here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot)", false)
 			.footer(|f| f.text("This bot is open source. Any feedback or feature request is welcome"))

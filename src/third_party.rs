@@ -70,6 +70,7 @@ impl BrowserMobProxy {
             ))
             .query(&[
                 ("captureHeaders", "true"),
+                ("captureContent", "true"),
                 ("initialPageTitle", "newbinusmaya"),
             ])
             .send()
@@ -123,20 +124,21 @@ impl Selenium {
         mcr_email
             .send_keys(TypingData::from(self.email.clone()) + Keys::Enter)
             .await?;
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+
+        tokio::time::sleep(Duration::from_millis(2000)).await;
 
         self.driver
             .find_element(By::Id("i0118"))
             .await?
             .send_keys(TypingData::from(self.password.clone()) + Keys::Enter)
-            .await
-            .expect("Error in typing password");
+            .await?;
+
         self.driver
             .find_element(By::Id("idSIButton9"))
             .await?
             .click()
-            .await
-            .expect("Error in getting mcr_btn");
+            .await?;
+
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
         if self
@@ -204,10 +206,6 @@ impl Selenium {
         tokio::time::sleep(Duration::from_millis(10000)).await;
 
         Ok(status)
-    }
-
-    pub async fn get_cookie(&self) -> WebDriverResult<Cookie> {
-        Ok(self.driver.get_cookie("PHPSESSID").await?)
     }
 
     pub async fn quit(self) -> WebDriverResult<()> {

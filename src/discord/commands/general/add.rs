@@ -9,18 +9,18 @@ use serenity::{
 use std::{io::Write, str::FromStr, fmt};
 use std::ops::Add;
 use std::{error::Error, fs::OpenOptions};
-use thirtyfour::{error::WebDriverError, Capabilities, DesiredCapabilities, Proxy, WebDriver, Cookie};
+use thirtyfour::{error::WebDriverError, Capabilities, DesiredCapabilities, Proxy, WebDriver};
 
 use crate::{
     consts::{CHROME_BINARY, NEW_BINUSMAYA, PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, MAGIC_CRYPT},
-    discord::{discord::{NewBinusmayaUserAuthInfo, NewBinusmayaUserRecord, UserCredential, OldBinusmayaUserRecord}, helper::ParseError},
-    api::dropbox_api,
+    discord::{discord::{NewBinusmayaUserAuthInfo, NewBinusmayaUserRecord, UserCredential, OldBinusmayaUserRecord, UserBinusianData}, helper::ParseError},
+    api::{dropbox_api, old_binusmaya_api::{OldBinusmayaApi, BinusianData}},
     third_party::{BrowserMobProxy, Selenium, Status},
 };
 
 #[derive(Debug)]
-enum CookieOutput<T, C> {
-	Out(T, C)
+enum CookieOutput<T,E> {
+	Out(T, E)
 }
 
 #[derive(Clone, Debug)]
@@ -85,7 +85,7 @@ async fn launch_selenium(
     user_credential: &UserCredential,
     proxy: &BrowserMobProxy,
     binus_ver: String,
-) -> Result<CookieOutput<Status<String>, Cookie>, WebDriverError> {
+) -> Result<CookieOutput<Status<String>, Option<String>>, WebDriverError> {
     proxy.create_proxy().await?;
 
     let proxy_port = proxy.get_proxy().await?;
@@ -127,11 +127,35 @@ async fn launch_selenium(
 		Status::ERROR("Error in registering, please try again. If the problem still persist, please contact `PlayerPlay#9549` or open a new issue [here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot/issues)".to_string())
 	);
 
-    let cookie = selenium.get_cookie().await?;
+    if let Status::VALID(_) = is_valid {
+        let mut cookie: Option<String> = None;
+        if binus_ver.eq(OLD_BINUSMAYA) {
+            let har = BrowserMobProxy::get_har(&proxy).await?;
 
-    selenium.quit().await?;
+            for entry in har["log"]["entries"].as_array().unwrap()  {
+                if entry["request"]["url"].as_str().unwrap().eq("https://binusmaya.binus.ac.id/services/ci/index.php/general/getBinusianData") {
+                    let binusian_data: BinusianData = serde_json::from_str(entry["response"]["content"]["text"].as_str().unwrap().clone()).unwrap();
+                    let user_binusian_data = UserBinusianData::init_data(&binusian_data);
+                    let old_binusmaya_api = OldBinusmayaApi::login(&user_binusian_data, user_credential).await;
+                    cookie = Some(old_binusmaya_api.cookie);
+                    break;
+                }
+            }
 
-    Ok(CookieOutput::Out(is_valid, cookie))
+        }
+
+        selenium.quit().await?;
+    
+        Ok(CookieOutput::Out(is_valid, cookie))
+    } else {
+        let cookie = None;
+
+        selenium.quit().await?;
+    
+        Ok(CookieOutput::Out(is_valid, cookie))
+    }
+
+
 }
 
 async fn write_user_data(
@@ -139,23 +163,22 @@ async fn write_user_data(
     proxy: &BrowserMobProxy,
     msg: &Message,
     user_credential: &UserCredential,
-    cookie: Cookie
+    cookie: Option<String>
 ) -> Result<(), Box<dyn Error>> {
     match binus_ver {
         Binusmaya::NewBinusmaya => {
-            let har = BrowserMobProxy::get_har(&proxy).await?;
+            let har = proxy.get_har().await?;
             let len = har["log"]["entries"].as_array().unwrap().len();
             let bearer_token =
                 &har["log"]["entries"][len - 1]["request"]["headers"][6]["value"].to_string();
-            
-            let user_data = NEWBINUSMAYA_USER_DATA.clone();
-        
+                
             let user_record = &NewBinusmayaUserRecord {
                 member_id: *msg.author.id.as_u64(),
                 auth: bearer_token[1..bearer_token.len() - 1].to_string(),
                 last_registered: Local::now(),
             };
-        
+                
+            let user_data = NEWBINUSMAYA_USER_DATA.clone();
             user_data.lock().await.insert(
                 user_record.member_id,
                 NewBinusmayaUserAuthInfo {
@@ -183,10 +206,16 @@ async fn write_user_data(
                 eprintln!("Error when writing to a file: {}", err);
             }
         
-            let res = dropbox_api::upload_file(NEWBINUSMAYA_USER_FILE.to_string()).await?;
-            println!("File upload status code: {}", res);
+            dropbox_api::upload_file(NEWBINUSMAYA_USER_FILE.to_string()).await?;
         },
         Binusmaya::OldBinusmaya => {
+            let cookie_clone = cookie.clone();
+            let old_binusmaya_api = OldBinusmayaApi {
+                cookie: cookie_clone.unwrap()
+            };
+            let binusian_data = old_binusmaya_api.get_binusian_data().await?;
+            let user_binusian_data = UserBinusianData::init_data(&binusian_data);
+
             let encrypted_user_credential = UserCredential {
                 email: user_credential.email.clone(),
                 password: MAGIC_CRYPT.encrypt_str_to_base64(user_credential.password.clone())
@@ -194,11 +223,12 @@ async fn write_user_data(
 
             let user_record = OldBinusmayaUserRecord {
                 member_id: *msg.author.id.as_u64(),
-                user_credential: encrypted_user_credential
+                user_credential: encrypted_user_credential,
+                binusian_data: user_binusian_data
             };
 
             let user_data = OLDBINUSMAYA_USER_DATA.clone();
-            user_data.lock().await.insert(*msg.author.id.as_u64(), cookie);
+            user_data.lock().await.insert(*msg.author.id.as_u64(), cookie.unwrap());
 
             let mut wtr = AsyncWriterBuilder::new()
                 .has_headers(false)
@@ -214,6 +244,8 @@ async fn write_user_data(
             if let Err(err) = write!(file, "{}", String::from_utf8(wtr.into_inner().await?).unwrap()) {
                 eprintln!("Error when writing to a file: {}", err);
             }
+
+            dropbox_api::upload_file(OLDBINUSMAYA_USER_FILE.to_string()).await?;
                 
         },
     }
@@ -363,6 +395,9 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
                                 })
                                 .await?;
 
+                            add_account(user_credential, binusmaya_version, msg, ctx).await.unwrap();
+
+
                         } else {
                             msg.channel_id
                                 .send_message(&ctx, |m| {
@@ -392,6 +427,8 @@ async fn add(ctx: &Context, msg: &Message) -> CommandResult {
                             }
                         )
                         .await?;
+
+                        add_account(user_credential, binusmaya_version, msg, ctx).await.unwrap();
                     }
 
                 },
