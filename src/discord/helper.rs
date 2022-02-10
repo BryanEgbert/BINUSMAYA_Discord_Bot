@@ -1,9 +1,15 @@
-use std::{error::Error, fmt::Display, str::FromStr};
+use std::{error::Error, fmt::Display, str::FromStr, fs::read_to_string};
 
+use csv_async::AsyncReaderBuilder;
+use futures::StreamExt;
 use serenity::{
     builder::{CreateActionRow, CreateButton},
     model::interactions::message_component::ButtonStyle,
 };
+
+use crate::{consts::{OLDBINUSMAYA_USER_FILE, OLDBINUSMAYA_USER_DATA}, api::old_binusmaya_api::OldBinusmayaApi};
+
+use super::discord::OldBinusmayaUserRecord;
 
 #[derive(PartialEq)]
 pub enum Nav {
@@ -59,5 +65,31 @@ impl Nav {
         ar.add_button(Nav::Next.button());
 
         ar
+    }
+}
+
+pub async fn update_cookie(user_id: Option<u64>) {
+    let oldbinusmaya_content = read_to_string(OLDBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
+
+    let rdr = AsyncReaderBuilder::new()
+        .has_headers(false)
+        .create_deserializer(oldbinusmaya_content.as_bytes());
+
+    let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
+    if let Some(id) = user_id {
+         while let Some(record) = records.next().await {
+            let record = record.unwrap();
+            if record.member_id == id {
+                let old_binusmaya_api = OldBinusmayaApi::login(&record.binusian_data, &record.user_credential).await;
+                OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
+                break;
+            }
+        }
+    } else {
+        while let Some(record) = records.next().await {
+            let record = record.unwrap();
+            let old_binusmaya_api = OldBinusmayaApi::login(&record.binusian_data, &record.user_credential).await;
+            OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
+        }
     }
 }

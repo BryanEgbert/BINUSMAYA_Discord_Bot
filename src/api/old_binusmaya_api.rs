@@ -29,7 +29,7 @@ pub struct SATPoints {
 impl Display for SATPoints {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for sat_point in &self.sat_points {
-			write!(f, "{} = **{}** point\n", sat_point.activity_type, sat_point.points)?;
+			write!(f, "{} - **{}** point(s)\n", sat_point.activity_type, sat_point.points)?;
 		}
 
 		Ok(())
@@ -43,6 +43,22 @@ pub struct ComServ {
 	points: u8,
 	total_points: u8,
 	target_points: u8
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(transparent)]
+pub struct ComServList {
+	list: Vec<ComServ>
+}
+
+impl Display for ComServList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for comserv in &self.list {
+			write!(f, "{} - **{}** hour(s)", comserv.community_service_type, comserv.points)?;
+		}
+
+		Ok(())
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -157,13 +173,13 @@ impl OldBinusmayaApi {
 			.await?)
 	}
 
-	pub async fn get_comnunity_service(&self) -> Result<Vec<ComServ>, reqwest::Error> {
+	pub async fn get_comnunity_service(&self) -> Result<ComServList, reqwest::Error> {
 		let client = self.init_client().await;
 		let response = client
 			.post("https://binusmaya.binus.ac.id/services/ci/index.php/sat/studentactivitytranscript/GetCommunityServices")
 			.send()
 			.await?
-			.json::<Vec<ComServ>>()
+			.json::<ComServList>()
 			.await?;
 
 		Ok(response)
@@ -309,7 +325,7 @@ use super::*;
 
 		println!("{:#?}", res);
 
-		assert_eq!(res.is_empty(), false);
+		assert_eq!(res.list.is_empty(), false);
 	}
 
 	#[tokio::test]
