@@ -27,7 +27,7 @@ use crate::{discord::commands::{
         schedule::*, upcoming::*
     },
     old_binusmaya::{
-        sat::*
+        sat::*, comserv::*,
     }
 }, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData}, self}};
 
@@ -98,7 +98,7 @@ pub struct General;
 pub struct NewBinusmaya;
 
 #[group]
-#[commands(sat)]
+#[commands(sat, comserv)]
 pub struct OldBinusmaya;
 
 pub struct Handler;

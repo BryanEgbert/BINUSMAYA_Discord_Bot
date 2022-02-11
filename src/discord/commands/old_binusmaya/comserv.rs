@@ -37,5 +37,6 @@ async fn comserv(ctx: &Context, msg: &Message) -> CommandResult {
 			)
 		}).await?;
 	}
+	
 	Ok(())
 }
