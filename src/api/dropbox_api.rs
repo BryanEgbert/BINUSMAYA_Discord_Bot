@@ -59,6 +59,8 @@ pub async fn download_file(file_name: String) -> Result<Option<String>, reqwest:
 
 #[cfg(test)]
 mod tests {
+    use crate::consts::OLDBINUSMAYA_USER_FILE;
+
     use super::*;
     #[tokio::test]
     async fn upload_file_test() {
@@ -69,7 +71,7 @@ mod tests {
 
     #[tokio::test]
     async fn download_file_test() {
-        let res = download_file(String::from("user_data.csv")).await.unwrap();
+        let res = download_file(String::from(OLDBINUSMAYA_USER_FILE.to_string())).await.unwrap();
 
         println!("{}", res.clone().unwrap());
         assert_eq!(res.unwrap().is_empty(), false);
