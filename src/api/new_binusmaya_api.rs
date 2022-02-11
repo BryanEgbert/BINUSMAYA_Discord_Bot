@@ -9,20 +9,13 @@ use std::fmt;
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AcademicPeriod {
-    academic_period: String,
-
-    #[serde(skip_deserializing)]
-    academic_period_description: String,
-    #[serde(skip_deserializing)]
-    academic_period_id: Option<String>,
-    #[serde(skip_deserializing)]
-    academic_period_status: bool,
-    #[serde(skip_deserializing)]
-    is_running_period: bool,
-    #[serde(skip_deserializing)]
-    term_begin_date: String,
-    #[serde(skip_deserializing)]
-    term_end_date: String,
+    pub academic_period: String,
+    pub academic_period_description: String,
+    #[serde(skip_deserializing)] pub academic_period_id: Option<String>,
+    #[serde(skip_deserializing)] pub academic_period_status: bool,
+    #[serde(skip_deserializing)] pub is_running_period: bool,
+    #[serde(skip_deserializing)] pub term_begin_date: String,
+    #[serde(skip_deserializing)] pub term_end_date: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -422,6 +415,20 @@ pub struct SimpleLecturer {
     picture_url: String,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Course {
+    pub class_code: String,
+    pub class_group_id: String,
+    pub class_id: String,
+    pub course_code: String,
+    pub course_name: String,
+    pub lecturers: Vec<Option<SimpleLecturer>>,
+    pub progress_class: u8,
+    pub ssr_component: String
+    
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleResource {
@@ -755,7 +762,11 @@ impl NewBinusmayaAPI {
         Ok(user_profile)
     }
 
-    async fn init_full_header(&self, user_profile: &UserProfile) -> HeaderMap {
+    async fn init_client(&self) -> reqwest::Client {
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
+            .await
+            .expect("Error in getting user profile");
+
         let mut headers = HeaderMap::new();
         headers.extend(NewBinusmayaAPI::init_user_profile_header(self));
         headers.insert(
@@ -785,68 +796,50 @@ impl NewBinusmayaAPI {
             HeaderValue::from_str(user_profile.role_categories[0].roles[0].academic_career.as_str()).unwrap(    ),
         );
 
-        headers
+        let client = reqwest::ClientBuilder::new()
+            .default_headers(headers)
+            .build().unwrap();
+
+        client
     }
 
-    async fn get_academic_period(&self) -> Result<Option<String>, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-        let client = reqwest::Client::new();
+    pub async fn get_academic_period(&self) -> Result<Vec<AcademicPeriod>, reqwest::Error> {
+        let client = self.init_client().await;
         let response = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/AcademicPeriod/Student")
-            .headers(NewBinusmayaAPI::init_full_header(self, &user_profile).await)
             .send()
             .await?
             .json::<Vec<AcademicPeriod>>()
             .await?;
 
-        let mut academic_period: String = String::new();
-
-        for i in response {
-            if i.is_running_period {
-                academic_period = i.academic_period;
-            }
-        }
-
-        Ok(Some(academic_period))
+        Ok(response)
     }
 
     pub async fn get_schedule(&self, date: &NaiveDate) -> Result<Option<Schedule>, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-        headers.insert(
-            HOST,
-            HeaderValue::from_static("func-bm7-schedule-prod.azurewebsites.net"),
-        );
+        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self).await?;
 
         let role_activity = RoleActivity::new(user_profile.role_categories[0].roles[0].clone());
         let mut role_activities = Vec::new();
         role_activities.push(role_activity);
 
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let response = client
             .post(format!(
                 "https://func-bm7-schedule-prod.azurewebsites.net/api/Schedule/Date-v1/{}",
                 date.to_string()
             ))
-            .headers(headers)
+            .header(HOST, HeaderValue::from_static("func-bm7-schedule-prod.azurewebsites.net"))
             .json(&SchedulePayload {
                 role_activity: role_activities,
             })
             .send()
-            .await
-            .expect("error when serializing");
+            .await?;
 
         if response.status() != reqwest::StatusCode::NO_CONTENT {
             return Ok(Some(
                 response
                     .json::<Schedule>()
-                    .await
-                    .expect("Something's wrong when parsing response"),
+                    .await?,
             ));
         } else {
             return Ok(None);
@@ -854,38 +847,20 @@ impl NewBinusmayaAPI {
     }
 
     pub async fn get_resource(&self, session_id: String) -> Result<SessionDetails, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let session_details = client
 			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Session/{}/Resource/Student", session_id))
 			.query(&[("isWeb", "true")])
-			.headers(headers)
-			.send().await.expect("Something's wrong when sending request")
+			.send().await?
 			.json::<SessionDetails>().await.expect("Something's wrong when parsing response");
 
         Ok(session_details)
     }
 
     pub async fn get_classes(&self) -> Result<ClassVec, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::builder()
-            .connection_verbose(true)
-            .build()?;
+        let client = self.init_client().await;
         let res = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Class/Active/Student")
-            .headers(headers)
             .send()
             .await?;
 
@@ -894,8 +869,7 @@ impl NewBinusmayaAPI {
         }
         let classes = res
             .json::<ClassVec>()
-            .await
-            .expect("Something's wrong when parsing");
+            .await?;
 
         Ok(classes)
     }
@@ -904,21 +878,11 @@ impl NewBinusmayaAPI {
         &self,
         class_id: String,
     ) -> Result<ClassDetails, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::builder()
-            .connection_verbose(true)
-            .build()?;
+        let client = self.init_client().await;
         let response = client
 			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Class/{}/Student", class_id))
-			.headers(headers)
 			.send().await.expect("something's wrong")
-			.json::<ClassDetails>().await.expect("Something's wrong when parsing response");
+			.json::<ClassDetails>().await?;
 
         Ok(response)
     }
@@ -927,60 +891,35 @@ impl NewBinusmayaAPI {
         &self,
         resource_id: &String,
     ) -> Result<reqwest::StatusCode, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let response = client
             .post("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/StudentProgress")
-            .headers(headers)
             .json::<StudentProgressPayload>(&StudentProgressPayload {
                 resource_id: resource_id.to_string(),
                 status: 2,
             })
             .send()
-            .await
-            .expect("Something's wrong when sending request");
+            .await?;
 
         Ok(response.status())
     }
 
     pub async fn get_ongoing_sessions(&self) -> Result<OngoingClassResponse, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
 
         let res = client
 			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Ongoing/student")
-			.headers(headers)
-			.send().await.expect("something's wrong when sending request")
-			.json::<OngoingClassResponse>().await.expect("Something's wrong when parsing response");
+			.send().await?
+			.json::<OngoingClassResponse>().await?;
 
         Ok(res)
     }
 
     pub async fn get_upcoming_sessions(&self) -> Result<Option<UpcomingClass>, reqwest::Error> {
-        let user_profile: UserProfile = NewBinusmayaAPI::get_user_profile(self)
-            .await
-            .expect("Error in getting user profile");
-
-        let mut headers = HeaderMap::new();
-        headers.extend(NewBinusmayaAPI::init_full_header(self, &user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let res = client
 			.get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Upcoming/student")
-			.headers(headers)
-			.send().await.expect("something's wrong when sending request")
+			.send().await?
 			.json::<Option<UpcomingClass>>().await.unwrap_or(None );
 
         Ok(res)
@@ -990,17 +929,11 @@ impl NewBinusmayaAPI {
         &self,
         page_number: u8,
     ) -> Result<AnnouncementResponse, reqwest::Error> {
-        let user_profile: UserProfile = self.get_user_profile().await?;
-
-        let mut headers = HeaderMap::new();
-        headers.extend(self.init_full_header(&user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let res = client
 			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/PageSize/100/PageNumber/{}", page_number))
-			.headers(headers)
-			.send().await.expect("Something's wrogn when sending request")
-			.json::<AnnouncementResponse>().await.expect("Something's wrong when parsing response");
+			.send().await?
+			.json::<AnnouncementResponse>().await?;
 
         Ok(res)
     }
@@ -1009,19 +942,33 @@ impl NewBinusmayaAPI {
         &self,
         id: &String,
     ) -> Result<Option<AnnouncementDetails>, reqwest::Error> {
-        let user_profile: UserProfile = self.get_user_profile().await?;
-
-        let mut headers = HeaderMap::new();
-        headers.extend(self.init_full_header(&user_profile).await);
-
-        let client = reqwest::Client::new();
+        let client = self.init_client().await;
         let res = client
 			.get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-notification-prod/Announcements/NoRead/{}", id))
-			.headers(headers)
 			.send().await?
 			.json::<AnnouncementDetails>().await?;
 
         Ok(Some(res))
+    }
+
+    pub async fn get_component_list(&self, academic_period: &str) -> Result<Vec<String>, reqwest::Error> {
+        let client = self.init_client().await;
+        let res = client
+            .get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Course/Period/{}/ClassComponentList/Student", academic_period))
+            .send().await?
+            .json::<Vec<String>>().await?;
+
+        Ok(res)
+    }
+
+    pub async fn get_component_courses(&self, academic_period: &str, class_component: &str) -> Result<Vec<Course>, reqwest::Error> {
+        let client = self.init_client().await;
+        let res = client
+            .get(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Course/Period/{}/Component/{}/Student", academic_period, class_component))
+            .send().await?
+            .json::<Vec<Course>>().await?;
+
+        Ok(res)
     }
 }
 
@@ -1049,5 +996,17 @@ mod tests {
             .unwrap();
         println!("{:#?}", res);
         assert_eq!(res.unwrap().title.is_empty(), false);
+    }
+
+    #[tokio::test]
+    async fn get_component_course() {
+        let token = env::var("BEARER_TOKEN").unwrap();
+        let binusmaya_api = NewBinusmayaAPI{token};
+        let res = binusmaya_api
+            .get_component_courses("2120", "LEC")
+            .await
+            .unwrap();
+        println!("{:#?}", res);
+        assert_eq!(res.is_empty(), false);
     }
 }
