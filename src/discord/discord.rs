@@ -23,8 +23,8 @@ use crate::{discord::commands::{
         about::*, add::*, ping::*, register::*
     },
     new_binusmaya::{
-        announcement::*, classes::*, details::*, ongoing::*, 
-        schedule::*, upcoming::*
+        announcement::*, classes::*, session::*, ongoing::*, 
+        schedule::*, upcoming::*,
     },
     old_binusmaya::{
         sat::*, comserv::*,
@@ -94,7 +94,7 @@ impl TypeMapKey for ShardManagerContainer {
 pub struct General;
 
 #[group]
-#[commands(schedule, details, classes, ongoing, upcoming, announcement)]
+#[commands(schedule, session, classes, ongoing, upcoming, announcement)]
 pub struct NewBinusmaya;
 
 #[group]
