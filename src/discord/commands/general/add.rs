@@ -14,7 +14,7 @@ use thirtyfour::{error::WebDriverError, Capabilities, DesiredCapabilities, Proxy
 use crate::{
     consts::{CHROME_BINARY, NEW_BINUSMAYA, PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE, OLD_BINUSMAYA, OLDBINUSMAYA_USER_DATA, OLDBINUSMAYA_USER_FILE, CHROME_SERVER_URL, MAGIC_CRYPT},
     discord::{discord::{NewBinusmayaUserAuthInfo, NewBinusmayaUserRecord, UserCredential, OldBinusmayaUserRecord, UserBinusianData}, helper::ParseError},
-    api::{dropbox_api, old_binusmaya_api::{OldBinusmayaApi, BinusianData}},
+    api::{dropbox_api, old_binusmaya_api::{OldBinusmayaAPI, BinusianData}},
     third_party::{BrowserMobProxy, Selenium, Status},
 };
 
@@ -136,7 +136,7 @@ async fn launch_selenium(
                 if entry["request"]["url"].as_str().unwrap().eq("https://binusmaya.binus.ac.id/services/ci/index.php/general/getBinusianData") {
                     let binusian_data: BinusianData = serde_json::from_str(entry["response"]["content"]["text"].as_str().unwrap().clone()).unwrap();
                     let user_binusian_data = UserBinusianData::init_data(&binusian_data);
-                    let old_binusmaya_api = OldBinusmayaApi::login(&user_binusian_data, user_credential).await;
+                    let old_binusmaya_api = OldBinusmayaAPI::login(&user_binusian_data, user_credential).await;
                     cookie = Some(old_binusmaya_api.cookie);
                     break;
                 }
@@ -210,7 +210,7 @@ async fn write_user_data(
         },
         Binusmaya::OldBinusmaya => {
             let cookie_clone = cookie.clone();
-            let old_binusmaya_api = OldBinusmayaApi {
+            let old_binusmaya_api = OldBinusmayaAPI {
                 cookie: cookie_clone.unwrap()
             };
             let binusian_data = old_binusmaya_api.get_binusian_data().await?;
