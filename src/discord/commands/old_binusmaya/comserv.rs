@@ -3,7 +3,7 @@ use serenity::framework::standard::macros::command;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
-use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaApi, discord::helper::update_cookie};
+use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
 
 #[command]
 async fn comserv(ctx: &Context, msg: &Message) -> CommandResult {
@@ -14,12 +14,12 @@ async fn comserv(ctx: &Context, msg: &Message) -> CommandResult {
 	
 	if user_data_content.contains_key(msg.author.id.as_u64()) {
 		let cookie = user_data_content.get(msg.author.id.as_u64()).unwrap();
-		let mut binusmaya_api = OldBinusmayaApi { cookie: cookie.to_string() };
+		let mut binusmaya_api = OldBinusmayaAPI { cookie: cookie.to_string() };
 		let session_status = binusmaya_api.check_session().await?.session_status;
 
 		if session_status == 0 {
 			update_cookie(Some(*msg.author.id.as_u64())).await;
-			binusmaya_api = OldBinusmayaApi { cookie: cookie.to_string() };
+			binusmaya_api = OldBinusmayaAPI { cookie: cookie.to_string() };
 		}
 
 		let comserv = binusmaya_api.get_comnunity_service().await?;

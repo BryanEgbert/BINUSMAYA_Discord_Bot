@@ -8,7 +8,7 @@ use serenity::framework::standard::{
     Args, CommandError, CommandGroup, CommandResult, HelpOptions, StandardFramework,
 };
 use serenity::{
-    async_trait, client::bridge::gateway::ShardManager, http::Http, model::prelude::*, prelude::*,
+    async_trait, client::bridge::gateway::ShardManager, http::Http, model::prelude::*, prelude::*
 };
 use std::{
     collections::HashSet,
@@ -27,7 +27,7 @@ use crate::{discord::commands::{
         schedule::*, upcoming::*,
     },
     old_binusmaya::{
-        sat::*, comserv::*,
+        sat::*, comserv::*, assignment::*,
     }
 }, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData}, self}};
 
@@ -94,11 +94,13 @@ impl TypeMapKey for ShardManagerContainer {
 pub struct General;
 
 #[group]
+#[summary("Commands that fetch data from new binusmaya")]
 #[commands(schedule, session, classes, ongoing, upcoming, announcement)]
 pub struct NewBinusmaya;
 
 #[group]
-#[commands(sat, comserv)]
+#[summary("Commands that fetch data from old binusmaya")]
+#[commands(sat, comserv, assignment)]
 pub struct OldBinusmaya;
 
 pub struct Handler;
@@ -255,6 +257,9 @@ impl EventHandler for Handler {
 }
 
 #[help]
+#[strikethrough_commands_tip_in_guild("")]
+#[strikethrough_commands_tip_in_dm("")]
+#[embed_success_colour("#3498DB")]
 async fn help(
     ctx: &Context,
     msg: &Message,
@@ -266,6 +271,21 @@ async fn help(
     let _ = help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
 
     Ok(())
+}
+
+#[hook]
+async fn before(ctx: &Context, msg: &Message, _cmd_name: &str) -> bool {
+    msg.react(&ctx, '👍').await.unwrap();
+
+    true
+}
+
+#[hook]
+async fn unknown_command(ctx: &Context, msg: &Message, cmd_name: &str) {
+    msg.channel_id.send_message(&ctx, |m| {
+        m.embed(|e| e
+            .field("Couldn't find command name", format!("Couldn't find command named **{}**, use `=help` command to see the command list", cmd_name), false))
+    }).await.unwrap();
 }
 
 #[hook]
@@ -302,7 +322,9 @@ pub async fn run() {
     };
     let framework = StandardFramework::new()
         .configure(|c| c.delimiter(';').prefix("=").owners(owners))
+        .before(before)
         .after(after_hook)
+        .unrecognised_command(unknown_command)
         .group(&GENERAL_GROUP)
         .group(&NEWBINUSMAYA_GROUP)
         .group(&OLDBINUSMAYA_GROUP)

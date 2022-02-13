@@ -3,11 +3,11 @@ use std::{error::Error, fmt::Display, str::FromStr, fs::read_to_string};
 use csv_async::AsyncReaderBuilder;
 use futures::StreamExt;
 use serenity::{
-    builder::{CreateActionRow, CreateButton},
+    builder::{CreateActionRow, CreateButton, CreateSelectMenu, CreateSelectMenuOption},
     model::interactions::message_component::ButtonStyle,
 };
 
-use crate::{consts::{OLDBINUSMAYA_USER_FILE, OLDBINUSMAYA_USER_DATA}, api::old_binusmaya_api::OldBinusmayaApi};
+use crate::{consts::{OLDBINUSMAYA_USER_FILE, OLDBINUSMAYA_USER_DATA}, api::old_binusmaya_api::OldBinusmayaAPI};
 
 use super::discord::OldBinusmayaUserRecord;
 
@@ -80,7 +80,7 @@ pub async fn update_cookie(user_id: Option<u64>) {
          while let Some(record) = records.next().await {
             let record = record.unwrap();
             if record.member_id == id {
-                let old_binusmaya_api = OldBinusmayaApi::login(&record.binusian_data, &record.user_credential).await;
+                let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
                 OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
                 break;
             }
@@ -88,8 +88,23 @@ pub async fn update_cookie(user_id: Option<u64>) {
     } else {
         while let Some(record) = records.next().await {
             let record = record.unwrap();
-            let old_binusmaya_api = OldBinusmayaApi::login(&record.binusian_data, &record.user_credential).await;
+            let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
             OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
         }
     }
+}
+
+pub async fn select_menu(menu_options: Vec<CreateSelectMenuOption>) -> CreateSelectMenu {
+    let mut menu = CreateSelectMenu::default();
+    menu.custom_id("academic_period_select");
+    menu.placeholder("No academic period selected");
+    menu.options(|f| {
+        for option in menu_options {
+            f.add_option(option);
+        }
+
+        f
+    });
+
+    menu
 }
