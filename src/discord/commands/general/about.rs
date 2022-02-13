@@ -17,7 +17,7 @@ async fn about(ctx: &Context, msg: &Message) -> CommandResult {
 			.field("Version:", "`v2.0.0`", true)
 			.field("Releases", "[Click here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot/releases)", true)
 			.field("Bot General Info", "[Click here](https://github.com/BryanEgbert/BINUSMAYA_Discord_Bot)", false)
-			.footer(|f| f.text("This bot is open source. Any feedback or feature request is welcome"))
+			.footer(|f| f.text("This bot is open source. Any feedbacks or feature requests are welcomed"))
 		)
 	}).await?;
     Ok(())
