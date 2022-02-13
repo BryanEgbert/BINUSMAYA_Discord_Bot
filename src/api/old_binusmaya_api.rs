@@ -16,10 +16,6 @@ pub struct SATPoint {
 	pub total_points: u8
 }
 
-enum Response<S, E> {
-	Res(S, E)
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(transparent)]
 pub struct SATPoints {
@@ -84,19 +80,42 @@ pub struct Courses {
 	pub courses: Vec<Course>
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Assignment {
 	#[serde(rename = "AssignmentFrom")] pub assignment_from: String,
 	#[serde(rename = "Title")] pub title: String,
 	#[serde(rename = "Date")] pub date: String,
 	pub deadline_duration: String,
+	pub deadline_time: String,
 	pub assignment_path_location: String,
 	#[serde(rename = "assignmentURL")] pub assignment_url: Option<String>,
 	#[serde(rename = "StudentAssignmentID")] pub student_assignment_id: u32,
 	#[serde(rename = "courseOutlineTopicID")] pub course_outline_topic_id: u32,
 	#[serde(rename = "courseAssignmentID")] pub course_assignment_id: Option<u16>,
 	#[serde(rename = "webcontent")] pub web_content: String
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(transparent)]
+pub struct AssignmentList {
+	pub assignments: Vec<Assignment>
+}
+
+impl Display for AssignmentList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.assignments.is_empty() {
+			write!(f, "No assignment")?;
+		}
+		for assignment in &self.assignments {
+			// let mut assignment_url = String::from("https://binusmaya.binus.ac.id/services/ci/index.php/general/downloadDocument/");
+			// assignment_url.push_str(assignment.assignment_path_location.replace("\\", "...").replace(" ", "%20").as_str());
+			write!(f, "> Title: **{}**\n> Due datetime: **{} {}**\n\n",
+				assignment.title, assignment.deadline_duration, assignment.deadline_time)?;
+		}
+
+		Ok(())
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -207,25 +226,25 @@ impl OldBinusmayaAPI {
 		Ok(response)
 	}
 
-	pub async fn get_individual_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<Vec<Assignment>, reqwest::Error> {
+	pub async fn get_individual_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<AssignmentList, reqwest::Error> {
 		let client = self.init_client().await;
 		let response = client
 			.get(format!("https://binusmaya.binus.ac.id/services/ci/index.php/student/classes/assignmentType/{}/{}/{}/{}/{}/01", course_id, crse_id, strm, ssr_component, class_number))
 			.send()
 			.await?
-			.json::<Vec<Assignment>>()
+			.json::<AssignmentList>()
 			.await?;
 
 		Ok(response)
 	}
 
-	pub async fn get_group_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<Vec<Assignment>, reqwest::Error> {
+	pub async fn get_group_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<AssignmentList, reqwest::Error> {
 		let client = self.init_client().await;
 		let response = client
 			.get(format!("https://binusmaya.binus.ac.id/services/ci/index.php/student/classes/assignmentType/{}/{}/{}/{}/{}/02", course_id, crse_id, strm, ssr_component, class_number))
 			.send()
 			.await?
-			.json::<Vec<Assignment>>()
+			.json::<AssignmentList>()
 			.await?;
 
 		Ok(response)
@@ -299,7 +318,7 @@ impl OldBinusmayaAPI {
 #[cfg(test)]
 mod tests {
 use super::*;
-	const COOKIE_VAL: &str = "PHPSESSID=cvitsomu2806aj9j4jfdb34j03";
+	const COOKIE_VAL: &str = "PHPSESSID=rk350af8t82m9k9uifnl3h0lg6";
 
 	#[tokio::test]
 	async fn check_session() {
@@ -365,9 +384,7 @@ use super::*;
 
 		let res = binusmaya_api.get_individual_assignments("CHAR6013001", "021583", "2110", "LEC", "21679").await.unwrap();
 
-		println!("{:#?}", res);
-
-		assert_eq!(res.is_empty(), false);
+		println!("{}", res);
 	}
 
 	#[tokio::test]
