@@ -116,8 +116,6 @@ async fn send_announcement_details(
 #[command]
 #[description("Get the announcements in new binusmaya")]
 async fn announcement(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.react(&ctx, '👍').await?;
-
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {

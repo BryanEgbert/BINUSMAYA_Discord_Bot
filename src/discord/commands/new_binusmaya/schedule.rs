@@ -24,8 +24,6 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
     let date = args.single::<String>().unwrap();
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
-    msg.react(&ctx, '👍').await?;
-
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
         let jwt_exp = user_data
             .lock()
@@ -101,8 +99,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 class
                                             ))
                                             .colour(PRIMARY_COLOR)
-                                    });
-                                    m.components(|c| c.add_action_row(Nav::action_row()))
+                                    })
                                 })
                             })
                             .await?;
@@ -118,8 +115,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 "No classes/sessions for today",
                                                 true,
                                             )
-                                    });
-                                    m.components(|c| c.add_action_row(Nav::action_row()))
+                                    })
                                 })
                             })
                             .await?;
@@ -140,11 +136,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 class
                                             ))
                                             .colour(PRIMARY_COLOR)
-                                    });
-                                    m.components(|c| c.add_action_row(Nav::action_row()));
-                                    m
-                                });
-                                r
+                                    })
+                                })
                             })
                             .await?;
                         } else {
@@ -159,11 +152,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 "No classes/sessions for today",
                                                 true,
                                             )
-                                    });
-                                    m.components(|c| c.add_action_row(Nav::action_row()));
-                                    m
-                                });
-                                r
+                                    })
+                                })
                             })
                             .await?;
                         }

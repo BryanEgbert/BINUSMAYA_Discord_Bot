@@ -57,8 +57,6 @@ async fn course_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_period: &
 #[description("Get session details")]
 #[aliases("resource", "res")]
 async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
-	 msg.react(&ctx, '👍').await?;
-
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {

@@ -14,8 +14,6 @@ use crate::{
 #[aliases("c")]
 #[description("Get the list of active classes in your major")]
 pub async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.react(&ctx, '👍').await?;
-
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
@@ -39,27 +37,15 @@ pub async fn classes(ctx: &Context, msg: &Message) -> CommandResult {
             };
             let classes = binusmaya_api.get_classes().await?;
 
-            if let Some(classes) = classes {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| {
-                        m.embed(|e| {
-                            e.title("Class List")
-                                .description(classes)
-                                .colour(PRIMARY_COLOR)
-                        })
+            msg.channel_id
+                .send_message(&ctx.http, |m| {
+                    m.embed(|e| {
+                        e.title("Class List")
+                            .description(classes)
+                            .colour(PRIMARY_COLOR)
                     })
-                    .await?;
-            } else {
-                msg.channel_id
-                    .send_message(&ctx.http, |m| {
-                        m.embed(|e| {
-                            e.title("Class List")
-                                .description("No active classes")
-                                .colour(PRIMARY_COLOR)
-                        })
-                    })
-                    .await?;
-            }
+                })
+                .await?;
         } else {
             msg.channel_id
                 .send_message(&ctx.http, |m| {

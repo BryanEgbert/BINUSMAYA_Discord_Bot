@@ -15,8 +15,6 @@ use crate::{
 #[command]
 #[description("Get ongoing classes")]
 async fn ongoing(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.react(&ctx, '👍').await?;
-
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
 
     if user_data.lock().await.contains_key(msg.author.id.as_u64()) {

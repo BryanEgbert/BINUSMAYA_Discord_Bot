@@ -7,8 +7,6 @@ use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_
 
 #[command]
 async fn sat(ctx: &Context, msg: &Message) -> CommandResult {
-	msg.react(&ctx, '👍').await?;
-
 	let user_data = OLDBINUSMAYA_USER_DATA.clone();
 	let user_data_content = user_data.lock().await;
 	
