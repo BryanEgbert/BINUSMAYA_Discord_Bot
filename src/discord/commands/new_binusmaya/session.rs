@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use chrono::Duration;
 use futures::StreamExt;
-use serenity::builder::{CreateSelectMenuOption, CreateSelectMenu, CreateActionRow};
+use serenity::builder::{CreateSelectMenuOption, CreateActionRow};
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::CommandError;
 use serenity::model::prelude::*;
@@ -11,7 +11,7 @@ use serenity::prelude::*;
 
 use crate::api::new_binusmaya_api::NewBinusmayaAPI;
 use crate::consts::{NEWBINUSMAYA_USER_DATA, PRIMARY_COLOR};
-use crate::discord::helper::Nav;
+use crate::discord::helper::{Nav, select_menu};
 
 async fn academic_period_menu_options(binusmaya_api: &NewBinusmayaAPI) -> Vec<CreateSelectMenuOption> {
     let mut vec_opt: Vec<CreateSelectMenuOption> = Vec::new();
@@ -42,7 +42,7 @@ async fn class_component_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_
 async fn course_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_period: &str, class_component: &str) -> Vec<CreateSelectMenuOption> {
 	let mut vec_opt: Vec<CreateSelectMenuOption> = Vec::new();
 	let courses = binusmaya_api.get_component_courses(academic_period, class_component).await.unwrap();
-
+ 
 	for course in courses {
 		let mut opt = CreateSelectMenuOption::default();
 		opt.label(&course.course_name);
@@ -51,21 +51,6 @@ async fn course_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_period: &
 	}
 
 	vec_opt
-}
-
-async fn select_menu(menu_options: Vec<CreateSelectMenuOption>) -> CreateSelectMenu {
-    let mut menu = CreateSelectMenu::default();
-    menu.custom_id("academic_period_select");
-    menu.placeholder("No academic period selected");
-    menu.options(|f| {
-        for option in menu_options {
-            f.add_option(option);
-        }
-
-        f
-    });
-
-    menu
 }
 
 #[command]
