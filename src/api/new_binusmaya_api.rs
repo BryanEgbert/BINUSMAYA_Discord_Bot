@@ -353,7 +353,7 @@ pub struct Class {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct ClassVec {
-    pub classes: Vec<Class>,
+    pub list: Vec<Class>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -395,9 +395,13 @@ pub struct ClassDetails {
 
 impl fmt::Display for ClassVec {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for class in &self.classes {
-            write!(f, "> Class code: **{}**\n> Course code: **{}**\n> Course name: **{}**\n> Class component: **{}**\n\n", 
-				class.class_Code, class.course_code, class.course_name, class.ssr_component)?;
+        if self.list.is_empty() {
+            write!(f, "No active class")?;
+        } else {
+            for class in &self.list {
+                write!(f, "> Class code: **{}**\n> Course code: **{}**\n> Course name: **{}**\n> Class component: **{}**\n\n", 
+                    class.class_Code, class.course_code, class.course_name, class.ssr_component)?;
+            }
         }
 
         Ok(())
@@ -857,7 +861,7 @@ impl NewBinusmayaAPI {
         Ok(session_details)
     }
 
-    pub async fn get_classes(&self) -> Result<Option<ClassVec>, reqwest::Error> {
+    pub async fn get_classes(&self) -> Result<ClassVec, reqwest::Error> {
         let client = self.init_client().await;
         let res = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Class/Active/Student")
@@ -865,7 +869,7 @@ impl NewBinusmayaAPI {
             .await?;
             
         let classes = res
-            .json::<Option<ClassVec>>()
+            .json::<ClassVec>()
             .await?;
 
         Ok(classes)
