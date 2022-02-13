@@ -137,11 +137,11 @@ pub struct SessionStatus {
 	#[serde(rename = "SessionStatus")] pub session_status: u8
 }
 
-pub struct OldBinusmayaApi {
+pub struct OldBinusmayaAPI {
 	pub cookie: String
 }
 
-impl OldBinusmayaApi {
+impl OldBinusmayaAPI {
 	async fn init_client(&self) -> reqwest::Client {
 		let mut headers = HeaderMap::new();
 		headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json;charset=utf-8"));
@@ -166,8 +166,6 @@ impl OldBinusmayaApi {
 			.send()
 			.await?;
 
-		
-
 		Ok(response
 			.json::<SATPoints>()
 			.await?)
@@ -185,22 +183,46 @@ impl OldBinusmayaApi {
 		Ok(response)
 	}
 
-	pub async fn get_courses(&self) -> Result<Courses, reqwest::Error> {
+	pub async fn get_courses(&self) -> Result<Option<Courses>, reqwest::Error> {
 		let client = self.init_client().await;
 		let response = client
 			.get("https://binusmaya.binus.ac.id/services/ci/index.php/student/init/getCourses")
 			.send()
 			.await?
-			.json::<Courses>()
+			.json::<Option<Courses>>()
 			.await?;
 
 		Ok(response)
 	}
 
-	pub async fn get_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<Vec<Assignment>, reqwest::Error> {
+	pub async fn get_course_menu_list(&self) -> Result<serde_json::Value, reqwest::Error> {
+		let client = self.init_client().await;
+		let response = client
+			.post("https://binusmaya.binus.ac.id/services/ci/index.php/student/init/getStudentCourseMenuCourses")
+			.send()
+			.await?
+			.json()
+			.await?;
+			
+		Ok(response)
+	}
+
+	pub async fn get_individual_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<Vec<Assignment>, reqwest::Error> {
 		let client = self.init_client().await;
 		let response = client
 			.get(format!("https://binusmaya.binus.ac.id/services/ci/index.php/student/classes/assignmentType/{}/{}/{}/{}/{}/01", course_id, crse_id, strm, ssr_component, class_number))
+			.send()
+			.await?
+			.json::<Vec<Assignment>>()
+			.await?;
+
+		Ok(response)
+	}
+
+	pub async fn get_group_assignments(&self, course_id: &str, crse_id: &str, strm: &str, ssr_component: &str,  class_number: &str) -> Result<Vec<Assignment>, reqwest::Error> {
+		let client = self.init_client().await;
+		let response = client
+			.get(format!("https://binusmaya.binus.ac.id/services/ci/index.php/student/classes/assignmentType/{}/{}/{}/{}/{}/02", course_id, crse_id, strm, ssr_component, class_number))
 			.send()
 			.await?
 			.json::<Vec<Assignment>>()
@@ -234,7 +256,7 @@ impl OldBinusmayaApi {
 	}
 
 	pub fn init_cookie(cookie: &Cookie) -> Self {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: format!("{}={}", cookie.name(), cookie.value())
 		};
 
@@ -266,7 +288,7 @@ impl OldBinusmayaApi {
 
 		let cookie = res.headers().get(SET_COOKIE).unwrap().to_str().unwrap().to_string();
 
-		let binusmaya_api= OldBinusmayaApi {
+		let binusmaya_api= OldBinusmayaAPI {
 			cookie
 		};
 
@@ -276,16 +298,12 @@ impl OldBinusmayaApi {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
-
-use reqwest::redirect::Policy;
-
 use super::*;
-	const COOKIE_VAL: &str = "PHPSESSID=14suu7lqgagn1i9oa40ukucla5";
+	const COOKIE_VAL: &str = "PHPSESSID=cvitsomu2806aj9j4jfdb34j03";
 
 	#[tokio::test]
 	async fn check_session() {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
@@ -294,7 +312,7 @@ use super::*;
 	}
 	#[tokio::test]
 	async fn get_binusian_data() {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
@@ -304,7 +322,7 @@ use super::*;
 	}
 	#[tokio::test]
 	async fn get_sat() {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
@@ -317,7 +335,7 @@ use super::*;
 
 	#[tokio::test]
 	async fn get_community_service() {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
@@ -330,24 +348,22 @@ use super::*;
 
 	#[tokio::test]
 	async fn get_courses() {
-		let binusmaya_api = OldBinusmayaApi {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
 		let res = binusmaya_api.get_courses().await.unwrap();
 
 		println!("{:#?}", res);
-
-		assert_eq!(res.courses.is_empty(), false);
 	}
 
 	#[tokio::test]
-	async fn get_assignments() {
-		let binusmaya_api = OldBinusmayaApi {
+	async fn get_individual_assignments() {
+		let binusmaya_api = OldBinusmayaAPI {
 			cookie: COOKIE_VAL.to_string()
 		};
 
-		let res = binusmaya_api.get_assignments("CHAR6013001", "021583", "2110", "LEC", "21679").await.unwrap();
+		let res = binusmaya_api.get_individual_assignments("CHAR6013001", "021583", "2110", "LEC", "21679").await.unwrap();
 
 		println!("{:#?}", res);
 
@@ -355,48 +371,13 @@ use super::*;
 	}
 
 	#[tokio::test]
-	async fn get_current_email() {
-		let client = reqwest::Client::new();
-		let res = client
-			.post("https://binusmaya.binus.ac.id/services/ci/index.php/general/GetCurrentEmail")
-			.header(CONTENT_TYPE, HeaderValue::from_static("application/json;charset=utf-8"))
-			.header(HeaderName::from_static("content-length"), HeaderValue::from_static("0"))
-			.header(COOKIE, HeaderValue::from_static(COOKIE_VAL))
-			.header(HOST, HeaderValue::from_static("binusmaya.binus.ac.id"))
-			.header(REFERER, HeaderValue::from_static("https://binusmaya.binus.ac.id/newStudent/"))
-			.send().await.unwrap().text().await.unwrap();
+	async fn get_course_menu_list() {
+		let binusmaya_api = OldBinusmayaAPI {
+			cookie: COOKIE_VAL.to_string()
+		};
 
-		println!("{:#?}", res);
-	}
+		let res = binusmaya_api.get_course_menu_list().await.unwrap();
 
-
-	#[tokio::test]
-	async fn login() {
-		let policy = Policy::none();
-		let mut params = HashMap::new();
-		params.insert("displayName", "BRYAN EGBERT");
-		params.insert("userName", "bryan.egbert@binus.ac.id");
-		params.insert("employeeID", "BN124028883");
-		params.insert("UserID", "2540120616");
-		params.insert("RoleID", "2");
-		params.insert("SpecificRoleID", "104");
-		params.insert("forcelogin", "forcelogin");
-		let client = reqwest::Client::builder()
-			.cookie_store(true)
-			.redirect(policy)
-			.build().unwrap();
-			
-		let res = client
-			.post("https://binusmaya.binus.ac.id//LoginAD.php")
-			.header(CONTENT_TYPE, HeaderValue::from_static("application/x-www-form-urlencoded"))
-			.header(HOST, HeaderValue::from_static("binusmaya.binus.ac.id"))
-			.form(&params)
-			.send().await.unwrap();
-
-		println!("{}", res.status());
-
-		// let cookie = res.headers().get(SET_COOKIE).unwrap();
-
-		println!("{:#?}", res.text().await.unwrap());
+		println!("{:#?}", res); 
 	}
 }
