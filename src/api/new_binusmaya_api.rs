@@ -857,18 +857,15 @@ impl NewBinusmayaAPI {
         Ok(session_details)
     }
 
-    pub async fn get_classes(&self) -> Result<ClassVec, reqwest::Error> {
+    pub async fn get_classes(&self) -> Result<Option<ClassVec>, reqwest::Error> {
         let client = self.init_client().await;
         let res = client
             .get("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Class/Active/Student")
             .send()
             .await?;
-
-        if res.status() != reqwest::StatusCode::OK {
-            panic!("status: {}\n{}", res.status(), res.text().await?);
-        }
+            
         let classes = res
-            .json::<ClassVec>()
+            .json::<Option<ClassVec>>()
             .await?;
 
         Ok(classes)
