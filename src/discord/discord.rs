@@ -2,11 +2,11 @@ use chrono::{DateTime, Duration, Local, NaiveDate};
 use csv_async::AsyncReaderBuilder;
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use serenity::framework::standard::{
+use serenity::{framework::standard::{
     help_commands,
     macros::{group, help, hook},
     Args, CommandError, CommandGroup, CommandResult, HelpOptions, StandardFramework,
-};
+}, utils::MessageBuilder};
 use serenity::{
     async_trait, client::bridge::gateway::ShardManager, http::Http, model::prelude::*, prelude::*
 };
@@ -34,6 +34,11 @@ use crate::{discord::commands::{
 use std::env;
 
 use super::helper::update_cookie;
+
+const VIRTUAL_CLASS: &str = "Virtual Class";
+const FORUM: &str = "Forum";
+const GSLC: &str = "GSLC";
+const ASSIGNMENT: &str = "Assignment";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewBinusmayaUserRecord {
@@ -152,8 +157,58 @@ async fn fetch_file() {
     println!("File created successfully");
 }
 
-async fn update_student_progress() {
-    stream::iter(NEWBINUSMAYA_USER_DATA.lock().await.iter())
+async fn update_student_progress(new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails) {
+    let class_session = new_binusmaya_api
+        .get_resource(schedule_details.custom_param.class_session_id.to_string())
+        .await
+        .unwrap();
+    for resource in class_session.resources.list {
+        if !resource.resource_type.eq(VIRTUAL_CLASS)
+            && !resource.resource_type.eq(FORUM)
+            && !resource.resource_type.eq(ASSIGNMENT)
+        {
+            new_binusmaya_api
+                .update_student_progress(&resource.id)
+                .await
+                .unwrap();
+        }
+    }
+}
+
+async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails, user_id: &u64) -> Result<(), chrono::format::ParseError> {
+    let now = NaiveDate::parse_from_str(chrono::offset::Local::now().format("%FT%X").to_string().as_str(),"%FT%X")?;
+    let date_end = NaiveDate::parse_from_str(schedule_details.date_end.as_str(), "%FT%X")?;
+    if schedule_details.class_delivery_mode.eq(GSLC) && now.eq(&date_end) {
+        let class_session = new_binusmaya_api
+            .get_resource(schedule_details.custom_param.class_session_id.to_string())
+            .await.unwrap();
+        let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await.unwrap();
+
+        let mut content = MessageBuilder::new();
+        let mut content_str = String::new();
+
+        class_session.resources.list.iter().for_each(|r| {
+            if r.resource_type.eq(FORUM) && r.progress_status != 2 {
+                content_str.push_str(format!("**{} - Session {}**\n[forum link](https://newbinusmaya.binus.ac.id/lms/course/{}/forum/{})", schedule_details.content, schedule_details.custom_param.session_number, schedule_details.custom_param.class_id, schedule_details.custom_param.class_session_id).as_str());
+            } 
+        });
+
+        content.push_underline("**Don't forget to post a forum, today's the deadline.**").push_quote_line(content_str);
+        private_channel.id.send_message(&ctx.http, |m| {
+            m.embed(|e| e
+                .title("Post GSLC Forum Reminder")
+                .description(content.build())
+
+            )
+        }).await.unwrap();
+    }
+
+    Ok(())
+}
+
+async fn loop_student_schedule(ctx: &Context) {
+    let user_data = NEWBINUSMAYA_USER_DATA.clone();
+    stream::iter(user_data.lock().await.iter())
         .for_each_concurrent(8, |(member_id, user_auth_info)| async move {
             println!("Updating student progress for {}", member_id);
 
@@ -176,37 +231,26 @@ async fn update_student_progress() {
 
             if let Some(classes) = schedule {
                 stream::iter(classes.schedule)
-                    .for_each_concurrent(8, |s| async {
-                        let class_session = binusmaya_api
-                            .get_resource(s.custom_param.class_session_id)
-                            .await
-                            .unwrap();
-                        for resource in class_session.resources.resources {
-                            if !resource.resource_type.eq("Virtual Class")
-                                && !resource.resource_type.eq("Forum")
-                                && !resource.resource_type.eq("Assignment")
-                            {
-                                binusmaya_api
-                                    .update_student_progress(&resource.id)
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                    })
-                    .await;
+                .for_each_concurrent(8, |s| async {
+                    let schedule_details = s.clone();
+                    
+                    update_student_progress(&binusmaya_api, s).await;
+                    post_forum_reminder(ctx, &binusmaya_api, schedule_details, member_id).await.unwrap();
+                })
+                .await;
             }
         })
         .await;
 }
 
-async fn daily_update() {
+async fn daily_event(ctx: &Context) {
     loop {
         let metadata = metadata(LOGIN_FILE).unwrap();
 
         if let Ok(time) = metadata.modified() {
             let last_login = DateTime::<Local>::from(time).date();
             if last_login.succ().eq(&chrono::offset::Local::now().date()) {
-                update_student_progress().await;
+                loop_student_schedule(ctx).await;
                 update_cookie(None).await;
 
                 File::create(LOGIN_FILE).unwrap_or_else(|e| {
@@ -223,7 +267,7 @@ async fn daily_update() {
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, _ctx: Context, data_about_bot: Ready) {
+    async fn ready(&self, ctx: Context, data_about_bot: Ready) {
         fetch_file().await;
         start_third_party_apps();
         
@@ -249,7 +293,7 @@ impl EventHandler for Handler {
 
         tokio::spawn(async move {
             println!("{:?} is running", thread::current().id());
-            daily_update().await;
+            daily_event(&ctx).await;
         });
 
         println!("{} is ready", data_about_bot.user.name);
