@@ -98,7 +98,7 @@ pub struct UserProfile {
 pub struct CustomParam {
     pub class_id: String,
     pub class_session_id: String,
-    pub session_number: u32,
+    pub session_number: u8,
 
     #[serde(skip_deserializing)]
     pub class_session_content_id: Option<String>,
@@ -251,12 +251,13 @@ pub struct Resource {
 #[derive(Deserialize, Debug)]
 #[serde(transparent)]
 pub struct ResourceList {
-    pub resources: Vec<Resource>,
+    pub list: Vec<Resource>,
 }
 
 impl fmt::Display for ResourceList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for resource in &self.resources.clone() {
+        for resource in &self.list
+         {
             let duration = {
                 if let Some(i) = resource.duration.clone() {
                     (i.parse::<u32>().unwrap() / 60).to_string()
