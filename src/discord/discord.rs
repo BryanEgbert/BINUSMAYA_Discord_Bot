@@ -18,7 +18,7 @@ use std::{
 };
 use tokio::fs::{write, File as TokioFile};
 
-use crate::{discord::commands::{
+use crate::{discord::{commands::{
     general::{
         about::*, add::*, ping::*, register::*
     },
@@ -29,11 +29,9 @@ use crate::{discord::commands::{
     old_binusmaya::{
         sat::*, comserv::*, assignment::*,
     }
-}, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData}, self}};
+}, helper::update_cookie_all}, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData}, self}};
 
 use std::env;
-
-use super::helper::update_cookie;
 
 const VIRTUAL_CLASS: &str = "Virtual Class";
 const FORUM: &str = "Forum";
@@ -253,7 +251,6 @@ async fn daily_event(ctx: &Context) {
             let last_login = DateTime::<Local>::from(time).date();
             if last_login.succ().eq(&chrono::offset::Local::now().date()) {
                 loop_student_schedule(ctx).await;
-                update_cookie(None).await;
 
                 File::create(LOGIN_FILE).unwrap_or_else(|e| {
                     panic!("Error in creating file: {:?}", e);
@@ -291,7 +288,7 @@ impl EventHandler for Handler {
             );
         }
 
-        update_cookie(None).await;
+        update_cookie_all().await;
 
         tokio::spawn(async move {
             println!("{:?} is running", thread::current().id());

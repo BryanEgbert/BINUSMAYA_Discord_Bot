@@ -68,7 +68,7 @@ impl Nav {
     }
 }
 
-pub async fn update_cookie(user_id: Option<u64>) {
+pub async fn update_cookie_all() {
     let oldbinusmaya_content = read_to_string(OLDBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
 
     let rdr = AsyncReaderBuilder::new()
@@ -76,22 +76,35 @@ pub async fn update_cookie(user_id: Option<u64>) {
         .create_deserializer(oldbinusmaya_content.as_bytes());
 
     let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
-    if let Some(id) = user_id {
-         while let Some(record) = records.next().await {
-            let record = record.unwrap();
-            if record.member_id == id {
-                let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
-                OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
-                break;
-            }
-        }
-    } else {
-        while let Some(record) = records.next().await {
-            let record = record.unwrap();
-            let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
-            OLDBINUSMAYA_USER_DATA.lock().await.insert(record.member_id, old_binusmaya_api.cookie);
-        }
+
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
+
+        OLDBINUSMAYA_USER_DATA.try_lock().unwrap().insert(record.member_id, old_binusmaya_api.cookie);
     }
+}
+
+pub async fn update_cookie(user_id: &u64, mut old_binusmaya_api: OldBinusmayaAPI) -> OldBinusmayaAPI {
+    let oldbinusmaya_content = read_to_string(OLDBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
+    
+    let rdr = AsyncReaderBuilder::new()
+    .has_headers(false)
+        .create_deserializer(oldbinusmaya_content.as_bytes());
+
+    let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
+    
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        
+        if &record.member_id != user_id {
+            continue;
+        }
+
+        old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
+    }
+
+    old_binusmaya_api
 }
 
 pub async fn select_menu(menu_options: Vec<CreateSelectMenuOption>) -> CreateSelectMenu {

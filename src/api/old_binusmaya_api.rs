@@ -156,6 +156,7 @@ pub struct SessionStatus {
 	#[serde(rename = "SessionStatus")] pub session_status: u8
 }
 
+#[derive(Debug)]
 pub struct OldBinusmayaAPI {
 	pub cookie: String
 }
@@ -310,15 +311,17 @@ impl OldBinusmayaAPI {
 		let binusmaya_api= OldBinusmayaAPI {
 			cookie
 		};
-
+		
 		binusmaya_api
 	}
 }
 
 #[cfg(test)]
 mod tests {
+use crate::{discord::helper::update_cookie, consts::OLDBINUSMAYA_USER_DATA};
+
 use super::*;
-	const COOKIE_VAL: &str = "PHPSESSID=rk350af8t82m9k9uifnl3h0lg6";
+	const COOKIE_VAL: &str = "PHPSESSID=cvitsomu2806aj9j4jfdb34j03";
 
 	#[tokio::test]
 	async fn check_session() {
@@ -396,5 +399,30 @@ use super::*;
 		let res = binusmaya_api.get_course_menu_list().await.unwrap();
 
 		println!("{:#?}", res); 
+	}
+
+	#[tokio::test]
+	async fn update_cookie_test() {
+		let user_data = OLDBINUSMAYA_USER_DATA.clone();
+		let mut user_data_content = user_data.lock().await;
+		user_data_content.insert(123, COOKIE_VAL.to_string());
+		let cookie = user_data_content.get(&123).unwrap();
+		let mut binusmaya_api = OldBinusmayaAPI {
+			cookie: cookie.to_string()
+		};
+
+		let session_status = binusmaya_api.check_session().await.unwrap().session_status;
+		println!("{}", session_status);
+
+		if session_status == 0 {
+			println!("update cookie");
+			binusmaya_api = update_cookie(&123, binusmaya_api).await;
+			println!("{:?}", binusmaya_api);
+			user_data_content.insert(123, binusmaya_api.cookie.clone());
+			println!("{:#?}", user_data_content);
+		}
+
+		let sat = binusmaya_api.get_sat().await.unwrap();
+		println!("{:#?}", sat);
 	}
 }

@@ -8,16 +8,15 @@ use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_
 #[command]
 async fn comserv(ctx: &Context, msg: &Message) -> CommandResult {
 	let user_data = OLDBINUSMAYA_USER_DATA.clone();
-	let user_data_content = user_data.lock().await;
+	let mut user_data_content = user_data.lock().await;
 	
 	if user_data_content.contains_key(msg.author.id.as_u64()) {
-		let cookie = user_data_content.get(msg.author.id.as_u64()).unwrap();
-		let mut binusmaya_api = OldBinusmayaAPI { cookie: cookie.to_string() };
+		let mut binusmaya_api = OldBinusmayaAPI { cookie: user_data_content.get(msg.author.id.as_u64()).unwrap().to_string() };
 		let session_status = binusmaya_api.check_session().await?.session_status;
 
 		if session_status == 0 {
-			update_cookie(Some(*msg.author.id.as_u64())).await;
-			binusmaya_api = OldBinusmayaAPI { cookie: cookie.to_string() };
+			binusmaya_api = update_cookie(msg.author.id.as_u64(), binusmaya_api).await;
+			user_data_content.insert(*msg.author.id.as_u64(), binusmaya_api.cookie.clone());
 		}
 
 		let comserv = binusmaya_api.get_comnunity_service().await?;

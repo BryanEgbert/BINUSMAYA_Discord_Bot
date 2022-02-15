@@ -99,16 +99,15 @@ async fn course_menu_options(course_menu_list: &serde_json::Value, academic_peri
 #[aliases("as")]
 async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 	let user_data = OLDBINUSMAYA_USER_DATA.clone();
-	let user_data_content = user_data.lock().await;
-
+	let mut user_data_content = user_data.lock().await;
+	
 	if user_data_content.contains_key(msg.author.id.as_u64()) {
-		let cookie = user_data_content.get(msg.author.id.as_u64()).unwrap();
-		let mut binusmaya_api = OldBinusmayaAPI { cookie: cookie.to_string() };
+		let mut binusmaya_api = OldBinusmayaAPI { cookie: user_data_content.get(msg.author.id.as_u64()).unwrap().to_string() };
 		let session_status = binusmaya_api.check_session().await?.session_status;
 
 		if session_status == 0 {
-			update_cookie(Some(*msg.author.id.as_u64())).await;
-			binusmaya_api = OldBinusmayaAPI {cookie: cookie.to_string() };
+			binusmaya_api = update_cookie(msg.author.id.as_u64(), binusmaya_api).await;
+			user_data_content.insert(*msg.author.id.as_u64(), binusmaya_api.cookie.clone());
 		}
 
 		let course_menu_list = binusmaya_api.get_course_menu_list().await.unwrap();
