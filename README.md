@@ -10,8 +10,10 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - Get schedule
 - Get session articles/links
 - Get progress status of a session
-- Get list of classes from your major
-- Update student progress for today's session at 00:00 GMT or 07:00 in WIB (VC, Forum, and assignments will not be updated)
+- Get list of active classes from your major
+- Update student progress for today's session at 00:00 GMT or 05:00 in WIB (VC, Forum, and assignments will not be updated)
+- **New:** Reminder to post forum for GSLC session the day it ends
+- **New:** Support fetching data from old binusmaya API. List of new commands: `=assignment`, `=sat`, `=comserv`.
 
 ## Third party Apps Used
 - [Chrome driver](https://chromedriver.chromium.org/downloads)
@@ -30,7 +32,7 @@ This is more of a bot for individuals rather than guild servers
 **Note:** if you type a command and there is no message from the bot, then either you typed the wrong command or argument for the command.
 
 ## How It Works
-When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` command, this is needed to fulfill the request header requirements and also needed to update your student progress. Don't worry, the bot **will not store your email and password**. It uses file to store the data.
+When you add the discord bot and want to run the Binus commands, you first need to register using the `=register` in group server or `=add` in DM, as of version 2.0.0, there is an option to add account into new binusmaya and old binusmaya so you can use the commands, this is needed to fulfill the request header to get the data. For new binusmaya, the bot will not store your email and password, for old binusmaya, the bot will store your email and password, don't worry, your passowrd is encrypted.
 
 ## How To Launch
 You can fork this project and write 
@@ -42,7 +44,7 @@ $ cargo run
 ```
 
 ## License
-[GPL-3.0 License](LICENSE)
+[MIT](LICENSE)
 
 ## How To Contribute
 You can contribute by simply using the app and report or open an issue is you encountered any problems while using it, when opening an issue, please explain the problem you're having clearly.
