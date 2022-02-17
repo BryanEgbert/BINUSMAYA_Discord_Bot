@@ -111,32 +111,16 @@ pub struct ScheduleDetails {
     pub date_end: String,
     pub title: String,
     pub content: String,
-
-    #[serde(skip_deserializing)]
-    pub location: Option<String>,
-
-    #[serde(skip_deserializing)]
+    #[serde(skip_deserializing)] pub location: Option<String>,
     pub location_value: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub schedule_type: String,
+    #[serde(skip_deserializing)] pub schedule_type: String,
     pub custom_param: CustomParam,
     pub class_delivery_mode: String,
-
-    #[serde(skip_deserializing)]
-    pub delivery_mode: String,
-
-    #[serde(skip_deserializing)]
-    pub delivery_mode_desc: String,
-
-    #[serde(skip_deserializing)]
-    pub academic_career_desc: String,
-
-    #[serde(skip_deserializing)]
-    pub institution_desc: String,
-
-    #[serde(skip_deserializing)]
-    pub organization_role_id: String,
+    #[serde(skip_deserializing)] pub delivery_mode: String,
+    #[serde(skip_deserializing)] pub delivery_mode_desc: String,
+    #[serde(skip_deserializing)] pub academic_career_desc: String,
+    #[serde(skip_deserializing)] pub institution_desc: String,
+    #[serde(skip_deserializing)] pub organization_role_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -152,15 +136,31 @@ pub struct Schedule {
 impl fmt::Display for Schedule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for class in &self.schedule {
-            write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n", 
-				class.title, class.content.clone(), 
-				NaiveDateTime::parse_from_str(class.date_start.as_str(), "%FT%X").unwrap(), 
-				NaiveDateTime::parse_from_str(class.date_end.as_str(), "%FT%X").unwrap(), 
-				class.custom_param.session_number, 
-				class.class_delivery_mode,
-				class.custom_param.class_id,
-				class.custom_param.class_session_id
-			)?;
+            match &class.location_value {
+                Some(location) => {
+                    write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> Location: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n", 
+                        class.title, class.content.clone(), 
+                        NaiveDateTime::parse_from_str(class.date_start.as_str(), "%FT%X").unwrap(), 
+                        NaiveDateTime::parse_from_str(class.date_end.as_str(), "%FT%X").unwrap(), 
+                        class.custom_param.session_number, 
+                        class.class_delivery_mode,
+                        location,
+                        class.custom_param.class_id,
+                        class.custom_param.class_session_id
+                    )?;
+                },
+                None => {
+                    write!(f, "> Class Title: **{}**\n> Subject: **{}**\n> Start : **{}**\n> End: **{}**\n> Session: **{}**\n> Class Delivery Mode: **{}**\n> [Session link](https://newbinusmaya.binus.ac.id/lms/course/{}/session/{})\n\n", 
+                        class.title, class.content.clone(), 
+                        NaiveDateTime::parse_from_str(class.date_start.as_str(), "%FT%X").unwrap(), 
+                        NaiveDateTime::parse_from_str(class.date_end.as_str(), "%FT%X").unwrap(), 
+                        class.custom_param.session_number, 
+                        class.class_delivery_mode,
+                        class.custom_param.class_id,
+                        class.custom_param.class_session_id
+                    )?;
+                },
+            }
         }
 
         Ok(())
