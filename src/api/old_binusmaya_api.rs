@@ -1,4 +1,4 @@
-use std::{fmt::Display, collections::HashMap};
+use std::{fmt::Display, collections::HashMap, io::Cursor, fs::File};
 
 use reqwest::{header::{HeaderMap, CONTENT_TYPE, HOST, HeaderValue, ORIGIN, REFERER, COOKIE, HeaderName, SET_COOKIE}, redirect::Policy};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -108,8 +108,6 @@ impl Display for AssignmentList {
 			write!(f, "No assignment")?;
 		}
 		for assignment in &self.assignments {
-			// let mut assignment_url = String::from("https://binusmaya.binus.ac.id/services/ci/index.php/general/downloadDocument/");
-			// assignment_url.push_str(assignment.assignment_path_location.replace("\\", "...").replace(" ", "%20").as_str());
 			write!(f, "> Title: **{}**\n> Due datetime: **{} {}**\n\n",
 				assignment.title, assignment.deadline_duration, assignment.deadline_time)?;
 		}
@@ -314,6 +312,27 @@ impl OldBinusmayaAPI {
 		
 		binusmaya_api
 	}
+
+	pub async fn download_assignment(&self, link: &str) -> Result<(), reqwest::Error> {
+		let file_name_start_index = link.rfind("\\").unwrap();
+		let file_name = &link[file_name_start_index+1..];
+		let mut file = File::create(file_name).unwrap();
+
+		let mut assignment_url = String::from("https://binusmaya.binus.ac.id/services/ci/index.php/general/downloadDocument/");
+		assignment_url.push_str(link.replace("\\", "...").replace(" ", "%20").as_str());
+
+		let client = self.init_client().await;
+		let res= client
+			.get(assignment_url)
+			.send()
+			.await?;
+
+		let mut content = Cursor::new(res.bytes().await?);
+
+		std::io::copy(&mut content, &mut file).unwrap();
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]
@@ -321,7 +340,7 @@ mod tests {
 use crate::{discord::helper::update_cookie, consts::OLDBINUSMAYA_USER_DATA};
 
 use super::*;
-	const COOKIE_VAL: &str = "PHPSESSID=cvitsomu2806aj9j4jfdb34j03";
+	const COOKIE_VAL: &str = "PHPSESSID=j4f4hfv6lq17obfin5nbg3j926";
 
 	#[tokio::test]
 	async fn check_session() {
@@ -424,5 +443,14 @@ use super::*;
 
 		let sat = binusmaya_api.get_sat().await.unwrap();
 		println!("{:#?}", sat);
+	}
+
+	#[tokio::test]
+	async fn download_assignment_test() {
+		let binusmaya_api = OldBinusmayaAPI {
+			cookie: COOKIE_VAL.to_string()
+		};
+
+		let res = binusmaya_api.download_assignment(r"general_course_outline\course_outline\assignment\RS1\010612\2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx").await.unwrap();
 	}
 }
