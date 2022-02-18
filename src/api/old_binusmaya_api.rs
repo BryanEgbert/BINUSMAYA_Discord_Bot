@@ -313,9 +313,7 @@ impl OldBinusmayaAPI {
 		binusmaya_api
 	}
 
-	pub async fn download_assignment(&self, link: &str) -> Result<(), reqwest::Error> {
-		let file_name_start_index = link.rfind("\\").unwrap();
-		let file_name = &link[file_name_start_index+1..];
+	pub async fn download_assignment(&self, link: &str, file_name: &str) -> Result<(), reqwest::Error> {
 		let mut file = File::create(file_name).unwrap();
 
 		let mut assignment_url = String::from("https://binusmaya.binus.ac.id/services/ci/index.php/general/downloadDocument/");
@@ -451,6 +449,6 @@ use super::*;
 			cookie: COOKIE_VAL.to_string()
 		};
 
-		let res = binusmaya_api.download_assignment(r"general_course_outline\course_outline\assignment\RS1\010612\2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx").await.unwrap();
+		let _res = binusmaya_api.download_assignment(r"general_course_outline\course_outline\assignment\RS1\010612\2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx", "2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx").await.unwrap();
 	}
 }

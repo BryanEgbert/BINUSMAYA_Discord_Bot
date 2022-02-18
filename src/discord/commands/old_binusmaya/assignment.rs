@@ -1,62 +1,89 @@
 use std::fmt::Display;
 use std::str::FromStr;
 use futures::StreamExt;
-use serenity::{builder::{CreateActionRow, CreateButton}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
+use serenity::{builder::{CreateActionRow, CreateButton, CreateSelectMenuOption, CreateSelectMenu}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
 
-use crate::discord::helper::*;
+use crate::{discord::helper::*, api::old_binusmaya_api::AssignmentList};
 use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
 use crate::discord::commands::old_binusmaya::helper::*;
-enum AssignmentType {
+
+const DOWNLOAD_ID: &str = "Download_";
+
+enum AssignmentInteraction {
 	Individual,
 	Group,
+	DownloadIndividual,
+	DownloadGroup
 }
 
-impl Display for AssignmentType {
+impl Display for AssignmentInteraction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Individual => write!(f, "Individual"),
 			Self::Group => write!(f, "Group"),
+			Self::DownloadIndividual => write!(f, "DownloadIndividual"),
+			Self::DownloadGroup => write!(f, "DownloadGroup"),
 		}
     }
 }
 
-impl FromStr for AssignmentType {
+impl FromStr for AssignmentInteraction {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-			"Individual" => Ok(AssignmentType::Individual),
-			"Group" => Ok(AssignmentType::Group),
+			"Individual" => Ok(AssignmentInteraction::Individual),
+			"Group" => Ok(AssignmentInteraction::Group),
+			"DownloadIndividual" => Ok(AssignmentInteraction::DownloadIndividual),
+			"DownloadGroup" => Ok(AssignmentInteraction::DownloadGroup),
 			_ => Err(ParseError(s.to_string())),
 		}
     }
 }
 
-impl AssignmentType {
-	fn button(&self) -> CreateButton {
+impl AssignmentInteraction {
+	fn button(&self) -> Vec<CreateButton> {
+		let mut btn_vec: Vec<CreateButton> = Vec::new();
+		btn_vec.reserve(2);
+
 		let mut btn = CreateButton::default();
 		btn.custom_id(self);
 		btn.label(self);
 		btn.style(ButtonStyle::Primary);
 
-		btn
+		let mut download_btn = CreateButton::default();
+		if let &Self::Individual = self {
+			download_btn.custom_id(Self::DownloadGroup);
+		} else {
+			download_btn.custom_id(Self::DownloadIndividual);
+		}
+		download_btn.label("Get question files");
+		download_btn.style(ButtonStyle::Secondary);
+
+		btn_vec.push(btn);
+		btn_vec.push(download_btn);
+
+		btn_vec
 	}
 
 	pub fn group_action_row() -> CreateActionRow {
 		let mut ar = CreateActionRow::default();
-		ar.add_button(Self::Group.button());
-		
+		for btn in Self::Group.button() {
+			ar.add_button(btn);
+		}
+
 		ar
 	}
 	
 	pub fn individual_action_row() -> CreateActionRow {
 		let mut ar = CreateActionRow::default();
-		ar.add_button(Self::Individual.button());
-		
+		for btn in Self::Individual.button() {
+			ar.add_button(btn);
+		}
+
 		ar
 	}
 }
-
 
 #[command]
 #[description("Get list of assignments")]
@@ -126,17 +153,22 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 					.description(&individual_assignment)
 					.colour(PRIMARY_COLOR)
 				);
-				d.components(|c| c.add_action_row(AssignmentType::group_action_row()))
+				d.components(|c| c
+					.add_action_row(AssignmentInteraction::group_action_row())
+				)
 			})
 		}).await?;
 
 		let mut cib = m.await_component_interactions(&ctx).await;
 		while let Some(mci) = cib.next().await {
-			let assignment_type = AssignmentType::from_str(&mci.data.custom_id).unwrap();
+			if mci.data.custom_id.contains(DOWNLOAD_ID) {
+				println!("{}", mci.data.custom_id);
+				continue;
+			}
+			let assignment_type = AssignmentInteraction::from_str(&mci.data.custom_id).unwrap();
 			
 			match assignment_type {
-    			AssignmentType::Individual => {
-
+    			AssignmentInteraction::Individual => {
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
@@ -147,12 +179,11 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 								.description(&individual_assignment)
 								.colour(PRIMARY_COLOR)
 							);
-							d.components(|c| c.add_action_row(AssignmentType::group_action_row()))
+							d.components(|c| c.add_action_row(AssignmentInteraction::group_action_row()))
 						})
 					}).await?;
 				},
-   				AssignmentType::Group => {
-
+   				AssignmentInteraction::Group => {
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
@@ -162,7 +193,38 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 								.description(&group_assignment)
 								.colour(PRIMARY_COLOR)
 							);
-							d.components(|c| c.add_action_row(AssignmentType::individual_action_row()))
+							d.components(|c| c.add_action_row(AssignmentInteraction::individual_action_row()))
+						})
+					}).await?;
+				},
+				AssignmentInteraction::DownloadIndividual => {
+					println!("Download individual assignments");
+					mci.create_interaction_response(&ctx, |r| {
+						r.kind(InteractionResponseType::UpdateMessage);
+						r.interaction_response_data(|d| {
+							d.content("");
+							d.create_embed(|e| e
+								.title("Individual Assignment(s)")
+								.url(&url)
+								.description(&individual_assignment)
+								.colour(PRIMARY_COLOR)
+							);
+							d.components(|c| c.add_action_row(AssignmentInteraction::group_action_row()))
+						})
+					}).await?;
+				},
+				AssignmentInteraction::DownloadGroup => {
+					println!("Download group assignments");
+					mci.create_interaction_response(&ctx, |r| {
+						r.kind(InteractionResponseType::UpdateMessage);
+						r.interaction_response_data(|d| {
+							d.create_embed(|e| e
+								.title("Group Assignment(s)")
+								.url(&url)
+								.description(&group_assignment)
+								.colour(PRIMARY_COLOR)
+							);
+							d.components(|c| c.add_action_row(AssignmentInteraction::individual_action_row()))
 						})
 					}).await?;
 				},
