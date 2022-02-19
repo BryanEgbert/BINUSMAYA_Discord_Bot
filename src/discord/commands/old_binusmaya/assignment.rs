@@ -1,13 +1,13 @@
-use std::fmt::Display;
+use std::time::Duration;
+use std::{fmt::Display, path::PathBuf};
 use std::str::FromStr;
 use futures::StreamExt;
-use serenity::{builder::{CreateActionRow, CreateButton, CreateSelectMenuOption, CreateSelectMenu}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
+use serenity::{builder::{CreateActionRow, CreateButton}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
 
-use crate::{discord::helper::*, api::old_binusmaya_api::AssignmentList};
+use crate::discord::helper::*;
 use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
 use crate::discord::commands::old_binusmaya::helper::*;
-
-const DOWNLOAD_ID: &str = "Download_";
+use tempdir::TempDir;
 
 enum AssignmentInteraction {
 	Individual,
@@ -161,10 +161,6 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 
 		let mut cib = m.await_component_interactions(&ctx).await;
 		while let Some(mci) = cib.next().await {
-			if mci.data.custom_id.contains(DOWNLOAD_ID) {
-				println!("{}", mci.data.custom_id);
-				continue;
-			}
 			let assignment_type = AssignmentInteraction::from_str(&mci.data.custom_id).unwrap();
 			
 			match assignment_type {
@@ -198,7 +194,24 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 					}).await?;
 				},
 				AssignmentInteraction::DownloadIndividual => {
-					println!("Download individual assignments");
+					if !individual_assignment.assignments.is_empty() {
+						let mut file_vec: Vec<PathBuf> = Vec::new();
+						file_vec.reserve(5);
+	
+						let tmp_dir = TempDir::new("assignment_files")?;
+	
+						for assignment in individual_assignment.clone().assignments {
+							let file_name_start_index = assignment.assignment_path_location.rfind("\\").unwrap();
+							let file_name = &assignment.assignment_path_location[file_name_start_index+1..];
+							let file_path = tmp_dir.path().join(file_name);
+							
+							binusmaya_api.download_assignment(&assignment.assignment_path_location, &file_path).await?;
+							file_vec.push(file_path);
+						}
+						
+						m.channel_id.send_files(&ctx.http, file_vec.iter(), |f| f.content(" ")).await?;
+					}
+					
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
@@ -212,9 +225,27 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 							d.components(|c| c.add_action_row(AssignmentInteraction::group_action_row()))
 						})
 					}).await?;
+
 				},
 				AssignmentInteraction::DownloadGroup => {
-					println!("Download group assignments");
+					if !group_assignment.assignments.is_empty() {
+						let mut file_vec: Vec<PathBuf> = Vec::new();
+						file_vec.reserve(5);
+	
+						let tmp_dir = TempDir::new("assignment_files")?;
+	
+						for assignment in group_assignment.clone().assignments {
+							let file_name_start_index = assignment.assignment_path_location.rfind("\\").unwrap();
+							let file_name = &assignment.assignment_path_location[file_name_start_index+1..];
+							let file_path = tmp_dir.path().join(file_name);
+							
+							binusmaya_api.download_assignment(&assignment.assignment_path_location, &file_path).await?;
+							file_vec.push(file_path);
+						}
+
+						m.channel_id.send_files(&ctx.http, file_vec.iter(), |f| f.content(" ")).await?;
+					}
+
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
@@ -227,6 +258,7 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 							d.components(|c| c.add_action_row(AssignmentInteraction::individual_action_row()))
 						})
 					}).await?;
+
 				},
 			}
 		}
