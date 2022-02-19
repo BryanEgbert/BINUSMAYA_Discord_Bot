@@ -3,7 +3,7 @@ name = "BINUSMAYA_Discord_Bot"
 authors = ["Bryan Egbert"]
 version = "2.0.2"
 edition = "2021"
-license = "GPL-3.0"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,3 +21,4 @@ futures = "0.3"
 lazy_static = "1.4"
 pcre2 = "0.2"
 magic-crypt = "3.1"
+tempdir = "0.3"
