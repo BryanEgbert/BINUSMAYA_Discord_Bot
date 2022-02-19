@@ -1,12 +1,8 @@
-use std::time::Duration;
-use std::{fmt::Display, path::PathBuf};
-use std::str::FromStr;
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 use futures::StreamExt;
 use serenity::{builder::{CreateActionRow, CreateButton}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
 
-use crate::discord::helper::*;
-use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
-use crate::discord::commands::old_binusmaya::helper::*;
+use crate::{discord::{helper::*, commands::old_binusmaya::helper::*}, consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI};
 use tempdir::TempDir;
 
 enum AssignmentInteraction {

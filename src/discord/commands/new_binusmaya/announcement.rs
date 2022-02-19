@@ -2,8 +2,8 @@ use chrono::Duration;
 use pcre2::bytes::RegexBuilder;
 use serenity::{
     framework::standard::{macros::command, CommandResult},
-    model::prelude::*,
-    prelude::*,
+    model::{prelude::*, interactions::message_component::ButtonStyle},
+    prelude::*, builder::CreateButton,
 };
 use std::ops::Add;
 
@@ -12,51 +12,35 @@ use crate::{
     consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
 };
 
-fn parse_html(content: &str) -> String {
+fn parse_html(mut content: String) -> String {
     let mut parsed_content = String::new();
-    let content2 = String::from(content);
-    let reg = RegexBuilder::new().build(r"(?P<open_tag><.*?>)(?P<inner_html>.*?)(?P<close_tag></.*?>)").unwrap();
+    let content_clone = content.clone();
 
-    for tags in reg.captures_iter(&content2.as_bytes()) {
+    let reg = RegexBuilder::new().build(r"(?P<open_tag><.*?>)").unwrap();
+    
+    for tags in reg.captures_iter(&content_clone.as_bytes()) {
         let caps = tags.unwrap();
         let open_tag = std::str::from_utf8(&caps["open_tag"]).unwrap();
-        let content = std::str::from_utf8(&caps["inner_html"]).unwrap();
 
         if open_tag.contains("<li") {
-            parsed_content.push_str("- ");
-        }
-
-        if content.eq("&nbsp;") {
-            parsed_content.push_str(content.replace("&nbsp;", "\n").as_str());
-        } else if content.contains("<strong>") && content.contains("<span style=\"text-decoration: underline;\">") {
-            parsed_content.push_str(content.replace("<strong>", "").replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
-            parsed_content.push_str("__");
-        } else if content.contains("<em>") {
-            parsed_content.push_str(content.replace("<em>", "*").as_str());
-            parsed_content.push('*');
-        } else if content.contains("<a") {
-            let mut content = String::from(content);
-
-            let start_tag = content.find("<a").unwrap();
-            let end_tag = content.rfind(">").unwrap();
-
-            content.replace_range(start_tag..end_tag+1, "");
-
-            parsed_content.push_str(content.replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
-            parsed_content.push_str("__");
-        } else if content.contains("<span style=\"text-decoration: underline;\">") {
-            parsed_content.push_str(content.replace("<span style=\"text-decoration: underline;\">", "__").replace("&nbsp;", " ").as_str());
-            parsed_content.push_str("__");
-        } else if content.contains("<strong>") {
-            parsed_content.push_str(content.replace("&nbsp;", " ").replace("<strong>", "**").replace("&ge;", "≥").as_str());
-            parsed_content.push_str("**");
+           content = content.replace(open_tag,"- ");
+        } else if open_tag.contains("<strong") || open_tag.eq("</strong>"){
+           content = content.replace(open_tag, "**");
+        } else if open_tag.contains("<em") || open_tag.eq("</em>") {
+           content = content.replace(open_tag, "*");
+        } else if open_tag.contains("<span") || open_tag.eq("</span>") {
+           content = content.replace(open_tag, "__");
+        } else if open_tag.eq("</p>") || open_tag.eq("<br />"){
+           content = content.replace(open_tag, "\n");
         } else {
-             parsed_content.push_str(content.replace("&nbsp;", " ").replace("&ge;", "≥").as_str());
+           content = content.replace(open_tag, "");
         }
 
-        parsed_content.push('\n');        
+       content = content.replace("&nbsp;", " ").replace("&ndash;", "-").replace("&amp;", "&").replace("&ge;", "≥");     
     }
 
+    parsed_content.push_str(&content); 
+    
     parsed_content
 }
 
@@ -68,7 +52,6 @@ async fn send_announcement_details(
 ) {
     let announcement_details: Option<AnnouncementDetails>;
     let title: String;
-    let mut content = String::new();
 
     if let Some(answer) = &msg
         .author
@@ -85,29 +68,37 @@ async fn send_announcement_details(
             .await
             .unwrap_or(None);
 
-        if let Some(announcement_details) = announcement_details {
-            title = announcement_details.title;
+        if let Some(details) = announcement_details {
+            msg.channel_id
+                .send_message(&ctx, |m| {
+                    m.embed(|e| e.title(details.title).description(parse_html(details.content)).colour(PRIMARY_COLOR));
+                    m.components(|f| {
+                        f.create_action_row(|ar| {
+                            if details.attachment_links.is_empty() {
+                                return ar;
+                            }
+    
+                            details.attachment_links.iter().for_each(|link| {
+                                let mut btn = CreateButton::default();
+                                btn.style(ButtonStyle::Link);
+                                btn.url(link.clone().unwrap());
+                                btn.label("Attachment Link");
 
-            content.push_str(parse_html(&announcement_details.content).as_str());
-
-            content.push_str(
-                format!(
-                    "**Attachment Link(s)\n{}**",
-                    announcement_details.attachment_links
-                )
-                .as_str(),
-            );
+                                ar.add_button(btn);
+                            });
+    
+                            ar
+                        })
+                    })
+                })
+                .await
+                .unwrap();
         } else {
-            title = "Error".to_string();
-            content = "Object reference not set to an instance of an object".to_string();
+            msg.channel_id.send_message(&ctx, |m| {
+                m.embed(|e| e.title("Error").description("Object reference not set to an instance of an object").colour(PRIMARY_COLOR))
+            }).await.unwrap();
         }
 
-        msg.channel_id
-            .send_message(&ctx, |m| {
-                m.embed(|e| e.title(title).description(content).colour(PRIMARY_COLOR))
-            })
-            .await
-            .unwrap();
     } else {
         return;
     }

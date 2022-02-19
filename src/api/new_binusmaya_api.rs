@@ -649,12 +649,9 @@ pub struct Announcement {
     title: String,
     start_date: String,
     end_date: String,
-    #[serde(skip)]
-    is_read: bool,
-    #[serde(skip)]
-    is_mandatory: bool,
-    #[serde(skip)]
-    link_url: Option<String>,
+    #[serde(skip)] is_read: bool,
+    #[serde(skip)] is_mandatory: bool,
+    #[serde(skip)] link_url: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -677,30 +674,10 @@ impl fmt::Display for AnnouncementResponse {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(transparent)]
-pub struct Links {
-    links: Vec<Option<String>>,
-}
-
-impl fmt::Display for Links {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for link in &self.links {
-            if let Some(link) = link {
-                write!(f, "{}\n", link)?;
-            } else {
-                write!(f, "No link")?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnouncementDetails {
     academic_career_desc: String,
-    pub attachment_links: Links,
+    pub attachment_links: Vec<Option<String>>,
     pub content: String,
     end_date: String,
     institution_desc: Option<String>,
