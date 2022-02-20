@@ -138,7 +138,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 class
                                             ))
                                             .colour(PRIMARY_COLOR)
-                                    })
+                                    });
+                                    m.components(|c| c.add_action_row(Nav::action_row()))
                                 })
                             })
                             .await?;
@@ -154,7 +155,8 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                                                 "No classes/sessions for today",
                                                 true,
                                             )
-                                    })
+                                    });
+                                    m.components(|c| c.add_action_row(Nav::action_row()))
                                 })
                             })
                             .await?;
