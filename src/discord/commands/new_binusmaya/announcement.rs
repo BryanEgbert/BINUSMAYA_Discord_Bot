@@ -51,7 +51,6 @@ async fn send_announcement_details(
     announcement_list: &AnnouncementResponse,
 ) {
     let announcement_details: Option<AnnouncementDetails>;
-    let title: String;
 
     if let Some(answer) = &msg
         .author
