@@ -79,7 +79,6 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
 
             let mut cib = mesg
                 .await_component_interactions(&ctx)
-                .message_id(mesg.id)
                 .await;
             while let Some(mci) = cib.next().await {
                 parsed_date = parsed_date.pred();
