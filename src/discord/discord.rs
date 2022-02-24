@@ -178,31 +178,32 @@ async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI,
     let date_end = NaiveDate::parse_from_str(schedule_details.date_end.as_str(), "%FT%X")?;
     
     if schedule_details.class_delivery_mode.eq(GSLC) && now.eq(&date_end) {
-        println!("Post forum reminder");
-        let class_session = new_binusmaya_api
-            .get_resource(schedule_details.custom_param.class_session_id.to_string())
-            .await.unwrap();
-        let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await;
+        println!("Date now: {:?}\nDate end: {:?}", now, date_end);
+        println!("{:?}", now.eq(&date_end));
+        // let class_session = new_binusmaya_api
+        //     .get_resource(schedule_details.custom_param.class_session_id.to_string())
+        //     .await.unwrap();
+        // let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await;
 
-        if let Ok(channel) = private_channel {
-            let mut content = MessageBuilder::new();
-            let mut content_str = String::new();
+        // if let Ok(channel) = private_channel {
+        //     let mut content = MessageBuilder::new();
+        //     let mut content_str = String::new();
     
-            class_session.resources.list.iter().for_each(|r| {
-                if r.resource_type.eq(FORUM) && r.progress_status != 2 {
-                    content_str.push_str(format!("**{} - Session {}**\n[forum link](https://newbinusmaya.binus.ac.id/lms/course/{}/forum/{})", schedule_details.content, schedule_details.custom_param.session_number, schedule_details.custom_param.class_id, schedule_details.custom_param.class_session_id).as_str());
-                } 
-            });
+        //     class_session.resources.list.iter().for_each(|r| {
+        //         if r.resource_type.eq(FORUM) && r.progress_status != 2 {
+        //             content_str.push_str(format!("**{} - Session {}**\n[forum link](https://newbinusmaya.binus.ac.id/lms/course/{}/forum/{})", schedule_details.content, schedule_details.custom_param.session_number, schedule_details.custom_param.class_id, schedule_details.custom_param.class_session_id).as_str());
+        //         } 
+        //     });
     
-            content.push_underline("**Don't forget to post a forum, today's the deadline.**").push_quote_line(content_str);
-            channel.id.send_message(&ctx.http, |m| {
-                m.embed(|e| e
-                    .title("Post GSLC Forum Reminder")
-                    .description(content.build())
+        //     content.push_underline("**Don't forget to post a forum, today's the deadline.**\n").push_quote_line(content_str);
+        //     channel.id.send_message(&ctx.http, |m| {
+        //         m.embed(|e| e
+        //             .title("Post GSLC Forum Reminder")
+        //             .description(content.build())
     
-                )
-            }).await.unwrap();
-        }
+        //         )
+        //     }).await.unwrap();
+        // }
     }
 
     Ok(())

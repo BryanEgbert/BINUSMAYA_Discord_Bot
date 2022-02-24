@@ -106,7 +106,9 @@ impl Display for AssignmentList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		if self.assignments.is_empty() {
 			write!(f, "No assignment")?;
+			return Ok(());
 		}
+		
 		for assignment in &self.assignments {
 			write!(f, "> Title: **{}**\n> Due datetime: **{} {}**\n\n",
 				assignment.title, assignment.deadline_duration, assignment.deadline_time)?;
