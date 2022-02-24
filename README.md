@@ -11,7 +11,7 @@ Discord bot for assisting daily activities in BINUSMAYA as a student from BINUS 
 - Get session articles/links
 - Get progress status of a session
 - Get list of active classes from your major
-- Update student progress for today's session at 00:00 GMT or 05:00 in WIB (VC, Forum, and assignments will not be updated)
+- Update student progress for today's session at 00:00 in WIB (VC, Forum, and assignments will not be updated)
 - **New:** Reminder to post forum for GSLC session the day it ends
 - **New:** Support fetching data from old binusmaya API. List of new commands: `=assignment`, `=sat`, `=comserv`.
 
