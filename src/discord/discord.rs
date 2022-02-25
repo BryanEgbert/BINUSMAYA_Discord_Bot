@@ -176,34 +176,32 @@ async fn update_student_progress(new_binusmaya_api: &NewBinusmayaAPI, schedule_d
 async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails, user_id: &u64) -> Result<(), chrono::format::ParseError> {
     let now = NaiveDate::parse_from_str(chrono::offset::Local::now().format("%FT%X").to_string().as_str(),"%FT%X")?;
     let date_end = NaiveDate::parse_from_str(schedule_details.date_end.as_str(), "%FT%X")?;
-    
-    if schedule_details.class_delivery_mode.eq(GSLC) && now.eq(&date_end) {
-        println!("Date now: {:?}\nDate end: {:?}", now, date_end);
-        println!("{:?}", now.eq(&date_end));
-        // let class_session = new_binusmaya_api
-        //     .get_resource(schedule_details.custom_param.class_session_id.to_string())
-        //     .await.unwrap();
-        // let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await;
 
-        // if let Ok(channel) = private_channel {
-        //     let mut content = MessageBuilder::new();
-        //     let mut content_str = String::new();
+    if schedule_details.class_delivery_mode.eq(GSLC) && now.eq(&date_end) {
+        let class_session = new_binusmaya_api
+            .get_resource(schedule_details.custom_param.class_session_id.to_string())
+            .await.unwrap();
+        let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await;
+
+        if let Ok(channel) = private_channel {
+            let mut content = MessageBuilder::new();
+            content.push_bold_line("Don't forget to post a forum, today's the deadline.");
+            
+            class_session.resources.list.iter().for_each(|r| {
+                if r.resource_type.eq(FORUM) && r.progress_status != 2 {
+                    content.push_quote_line(format!("**{} - Session {}**", schedule_details.content, schedule_details.custom_param.session_number))
+                        .push_quote_line(format!("[forum link](https://newbinusmaya.binus.ac.id/lms/course/{}/forum/{})", schedule_details.custom_param.class_id, schedule_details.custom_param.class_session_id));
+                } 
+            });
     
-        //     class_session.resources.list.iter().for_each(|r| {
-        //         if r.resource_type.eq(FORUM) && r.progress_status != 2 {
-        //             content_str.push_str(format!("**{} - Session {}**\n[forum link](https://newbinusmaya.binus.ac.id/lms/course/{}/forum/{})", schedule_details.content, schedule_details.custom_param.session_number, schedule_details.custom_param.class_id, schedule_details.custom_param.class_session_id).as_str());
-        //         } 
-        //     });
+            channel.id.send_message(&ctx.http, |m| {
+                m.embed(|e| e
+                    .title("Post GSLC Forum Reminder")
+                    .description(content.build())
     
-        //     content.push_underline("**Don't forget to post a forum, today's the deadline.**\n").push_quote_line(content_str);
-        //     channel.id.send_message(&ctx.http, |m| {
-        //         m.embed(|e| e
-        //             .title("Post GSLC Forum Reminder")
-        //             .description(content.build())
-    
-        //         )
-        //     }).await.unwrap();
-        // }
+                )
+            }).await.unwrap();
+        }
     }
 
     Ok(())
@@ -213,8 +211,6 @@ async fn loop_student_schedule(ctx: &Context) {
     let user_data = NEWBINUSMAYA_USER_DATA.clone();
     stream::iter(user_data.lock().await.iter())
         .for_each_concurrent(8, |(member_id, user_auth_info)| async move {
-            println!("Updating student progress for {}", member_id);
-
             let binusmaya_api = NewBinusmayaAPI {
                 token: user_auth_info.auth.to_string(),
             };
@@ -390,5 +386,51 @@ pub async fn run() {
 
     if let Err(e) = client.start().await {
         println!("An error has occured: {:?}", e);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn post_reminder_test() {
+
+        let binusmaya_api = NewBinusmayaAPI {
+            token: "Bearer eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6ImJjOTg4NTM5LTg5ZWQtNDA5OS04MTkzLWNiMGUzNTFjMjg1NCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJCUllBTiBFR0JFUlQiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJHdWVzdCIsIm5iZiI6MTY0NDIwNzUyNSwiZXhwIjoxNjc1NzQzNTI1LCJpc3MiOiJCaW51c1NlcnZpY2VzIiwiYXVkIjoiTmV4dXMuSWRlbnRpdHlTZXJ2aWNlIn0.0GMmYGQh7HEQdwPwZmWaxtt4CvtF3Ke9LwWaA4w8HbX-5PtewpvbNHKnzmv68_nu6UqDQPMugifLeNQ3wQaSl9IIURw9BfBTegksIzHgDtcGV4U3dd7Pc2MFu4YuHXuhnF0bCu0DxSeDs5qfGnKbK8s6N6VKirQO360uKy0_Lv8".to_string(),
+        };
+        let schedule = binusmaya_api
+            .get_schedule(
+                &NaiveDate::parse_from_str(
+                    chrono::offset::Local::now()
+                        .format("%Y-%-m-%-d")
+                        .to_string()
+                        .as_str(),
+                    "%Y-%-m-%-d",
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let mut content = MessageBuilder::new();
+        content.push_underline_line("**Don't forget to post a forum, today's the deadline.**").push_quote_line("**EESE 2 - Session 1**\n[forum link](https://newbinusmaya.binus.ac.id/lms/course/a/forum/a)");
+
+        println!("{:?}", content);
+
+        if let Some(classes) = schedule {
+            stream::iter(classes.schedule)
+            .for_each_concurrent(8, |s| async move {
+                let schedule_details = s.clone();
+    
+
+                
+                let now = NaiveDate::parse_from_str(chrono::offset::Local::now().format("%FT%X").to_string().as_str(),"%FT%X").unwrap();
+                let date_end = NaiveDate::parse_from_str(schedule_details.date_end.as_str(), "%FT%X").unwrap();
+                println!("{}", s.content);
+                println!("Date now: {:?}\nDate end: {:?}", now, date_end);
+                println!("{:?}", now.eq(&date_end));
+            })
+            .await;
+        }
     }
 }
