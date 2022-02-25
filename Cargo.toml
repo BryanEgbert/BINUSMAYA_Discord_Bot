@@ -1,7 +1,7 @@
 [package]
 name = "BINUSMAYA_Discord_Bot"
 authors = ["Bryan Egbert"]
-version = "2.0.3"
+version = "2.0.4"
 edition = "2021"
 license = "MIT"
 
