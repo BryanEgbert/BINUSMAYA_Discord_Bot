@@ -11,7 +11,7 @@
 		{
 			"label": "chrome driver",
 			"type": "shell",
-			"command": "./chromedriver --port=4444"
+			"command": "./chromedriver --remote-debugging-port=9222"
 		}
 	]
 }

@@ -110,7 +110,7 @@ pub struct Handler;
 
 fn start_third_party_apps() {
     Command::new("./chromedriver")
-        .arg("--port=4444")
+        .arg("--port=9222")
         .spawn()
         .expect("Failed to run chrome driver");
 

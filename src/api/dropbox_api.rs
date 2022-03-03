@@ -64,7 +64,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn upload_file_test() {
-        let res = upload_file(String::from("old_binusmaya_user_data.csv")).await.unwrap();
+        let res = upload_file(String::from("user_data.csv")).await.unwrap();
 
         assert_eq!(res, reqwest::StatusCode::OK);
     }

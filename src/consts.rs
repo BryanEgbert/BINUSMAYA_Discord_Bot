@@ -13,7 +13,7 @@ pub const LOGIN_FILE: &str = "last_login.txt";
 pub const NEW_BINUSMAYA: &str = "https://newbinusmaya.binus.ac.id";
 pub const OLD_BINUSMAYA: &str = "https://binusmaya.binus.ac.id";
 
-pub const CHROME_SERVER_URL: &str = "http://localhost:4444";
+pub const CHROME_SERVER_URL: &str = "http://localhost:9222";
 
 lazy_static! {
     pub static ref NEWBINUSMAYA_USER_DATA: Arc<Mutex<HashMap<u64, NewBinusmayaUserAuthInfo>>> =
