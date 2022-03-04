@@ -74,7 +74,7 @@ async fn send_announcement_details(
                     m.components(|f| {
                         f.create_action_row(|ar| {
                             if details.attachment_links.is_empty() {
-                                return ar;
+                                disabled = true;
                             }
     
                             details.attachment_links.iter().for_each(|link| {
@@ -82,6 +82,7 @@ async fn send_announcement_details(
                                 btn.style(ButtonStyle::Link);
                                 btn.url(link.clone().unwrap());
                                 btn.label("Attachment Link");
+                                btn.disabled(disabled);
 
                                 ar.add_button(btn);
                             });
