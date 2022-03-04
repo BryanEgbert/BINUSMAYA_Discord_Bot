@@ -175,7 +175,7 @@ async fn update_student_progress(new_binusmaya_api: &NewBinusmayaAPI, schedule_d
 
 async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails, user_id: &u64) -> Result<(), chrono::format::ParseError> {
     let now = NaiveDate::parse_from_str(chrono::offset::Local::now().format("%FT%X").to_string().as_str(),"%FT%X")?;
-    let date_end = NaiveDate::parse_from_str(schedule_details.date_end.as_str(), "%FT%X")?;
+    let date_end = NaiveDate::parse_from_str(schedule_details.date_start.as_str(), "%FT%X")?.checked_sub_signed(Duration::days(7)).unwrap();
 
     if schedule_details.class_delivery_mode.eq(GSLC) && now.eq(&date_end) {
         let class_session = new_binusmaya_api
