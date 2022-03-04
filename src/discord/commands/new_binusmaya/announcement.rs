@@ -72,21 +72,27 @@ async fn send_announcement_details(
                 .send_message(&ctx, |m| {
                     m.embed(|e| e.title(details.title).description(parse_html(details.content)).colour(PRIMARY_COLOR));
                     m.components(|f| {
-                        let mut disabled = false;
                         f.create_action_row(|ar| {
                             if details.attachment_links.is_empty() {
-                                disabled = true;
-                            }
-    
-                            details.attachment_links.iter().for_each(|link| {
                                 let mut btn = CreateButton::default();
                                 btn.style(ButtonStyle::Link);
-                                btn.url(link.clone().unwrap());
+                                btn.url("https://www.google.com");
                                 btn.label("Attachment Link");
-                                btn.disabled(disabled);
+                                btn.disabled(true);
 
                                 ar.add_button(btn);
-                            });
+                            } else {
+                                details.attachment_links.iter().for_each(|link| {
+                                    let mut btn = CreateButton::default();
+                                    btn.style(ButtonStyle::Link);
+                                    btn.url(link.clone().unwrap());
+                                    btn.label("Attachment Link");
+                                    btn.disabled(false);
+    
+                                    ar.add_button(btn);
+                                });
+                            }
+    
     
                             ar
                         })
