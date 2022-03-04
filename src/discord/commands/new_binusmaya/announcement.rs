@@ -72,6 +72,7 @@ async fn send_announcement_details(
                 .send_message(&ctx, |m| {
                     m.embed(|e| e.title(details.title).description(parse_html(details.content)).colour(PRIMARY_COLOR));
                     m.components(|f| {
+                        let mut disabled = false;
                         f.create_action_row(|ar| {
                             if details.attachment_links.is_empty() {
                                 disabled = true;
