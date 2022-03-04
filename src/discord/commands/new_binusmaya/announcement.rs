@@ -36,7 +36,7 @@ fn parse_html(mut content: String) -> String {
            content = content.replace(open_tag, "");
         }
 
-       content = content.replace("&nbsp;", " ").replace("&ndash;", "-").replace("&amp;", "&").replace("&ge;", "≥");     
+       content = content.replace("&nbsp;", " ").replace("&ndash;", "-").replace("&amp;", "&").replace("&ge;", "≥").replace("&zwj;", "").replace("&bull;", "- ");     
     }
 
     parsed_content.push_str(&content); 
