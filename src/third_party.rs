@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde_json::json;
 use std::time::Duration;
-use thirtyfour::{extensions::chrome::ChromeDevTools, prelude::*};
+use thirtyfour::{prelude::*, extensions::cdp::ChromeDevTools};
 use tokio;
 
 use crate::consts::NEW_BINUSMAYA;
@@ -115,37 +115,36 @@ impl Selenium {
 
         let mcr_email = self
             .driver
-            .find_element(By::Id("i0116"))
+            .find(By::Id("i0116"))
             .await
             .expect("Error in getting mcr_email");
 
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+            self.driver.handle.set_implicit_wait_timeout(Duration::from_millis(1000)).await?;
 
         mcr_email
-            .send_keys(TypingData::from(self.email.clone()) + Keys::Enter)
+            .send_keys(self.email.clone() + Key::Enter)
             .await?;
 
-        tokio::time::sleep(Duration::from_millis(2000)).await;
+        self.driver.handle.set_implicit_wait_timeout(Duration::from_millis(2000)).await?;
 
         self.driver
-            .find_element(By::Id("i0118"))
+            .find(By::Id("i0118"))
             .await?
-            .send_keys(TypingData::from(self.password.clone()) + Keys::Enter)
+            .send_keys(self.password.clone() + Key::Enter)
             .await?;
 
         self.driver
-            .find_element(By::Id("idSIButton9"))
+            .find(By::Id("idSIButton9"))
             .await?
             .click()
             .await?;
 
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        self.driver.handle.set_implicit_wait_timeout(Duration::from_millis(1000)).await?;
 
         if self
             .driver
             .current_url()
-            .await?
-            .contains("https://login.microsoftonline.com/")
+            .await.unwrap().host_str().unwrap().eq("login.microsoftonline.com")
         {
             Ok(Status::INVALID("Wrong email or password".to_string()))
         } else {
@@ -170,27 +169,28 @@ impl Selenium {
     }
 
     pub async fn run(&self, link: &String) -> WebDriverResult<Status<String>> {
-        let dev_tools = ChromeDevTools::new(&self.driver);
-        dev_tools.execute_cdp("Network.enable").await?;
-        dev_tools.execute_cdp_with_params(
-			"Network.setBlockedURLs", 
-		json!({"urls": vec!["*.jpg", "*.woff2", "*.woff", "*.ttf", "*.svg", "*.jpeg", "*.png", "*.dahsboard", "*func-bm7-notification-prod*", "*.ico", "*.json", "*image/*", "*func-bm7-organization-prod*", "*ToDo*", "*func-bm7-forum-prod*", "*fonts.googleapis.com*", 
-			"https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Ongoing/student", "https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Session/AcademicPeriod/2110"]
-		})).await?;
+        // let dev_tools = ChromeDevTools::new(self.driver.handle.clone());
+        // dev_tools.execute_cdp("Network.enable").await?;
+        // dev_tools.execute_cdp_with_params(
+		// 	"Network.setBlockedURLs", 
+		// json!({"urls": vec!["*.jpg", "*.woff2", "*.woff", "*.ttf", "*.svg", "*.jpeg", "*.png", "*.dahsboard", "*func-bm7-notification-prod*", "*.ico", "*.json", "*image/*", "*func-bm7-organization-prod*", "*ToDo*", "*func-bm7-forum-prod*", "*fonts.googleapis.com*", 
+		// 	"https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/Ongoing/student", "https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/Session/AcademicPeriod/2110"]
+		// })).await?;
 
-        self.driver.get(link).await?;
+        self.driver.goto(link).await.unwrap();
+        self.driver.handle.set_implicit_wait_timeout(Duration::from_millis(10000)).await?;
 
         if link.eq(NEW_BINUSMAYA) {
             let mcr_login_btn = self
                 .driver
-                .find_element(By::ClassName("button--azure--ad"))
+                .find(By::ClassName("button--azure--ad"))
                 .await
                 .expect("Error in getting mcr_login_btn");
             mcr_login_btn.click().await?;
         } else {
             let login_btn = self
                 .driver
-                .find_element(By::XPath(
+                .find(By::XPath(
                     "/html/body/div/section[2]/div/div[2]/div/div[2]/div[1]/a[2]",
                 ))
                 .await;
@@ -201,9 +201,9 @@ impl Selenium {
             }
         }
 
-        let status = Selenium::microsoft_login(&self).await?;
+        let status = Selenium::microsoft_login(&self).await.expect("mcr login err");
 
-        tokio::time::sleep(Duration::from_millis(10000)).await;
+        self.driver.handle.set_implicit_wait_timeout(Duration::from_millis(10000)).await?;
 
         Ok(status)
     }

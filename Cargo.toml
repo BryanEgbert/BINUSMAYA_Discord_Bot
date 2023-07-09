@@ -11,10 +11,10 @@ license = "MIT"
 reqwest = { version = "0.11", features = ["json", "cookies"]}
 tokio = { version = "1.15", features = ["full"] }
 tokio-util = { version = "0.6", features = ["codec"] }
-thirtyfour = "0.28"
+thirtyfour = "0.31"
 serde_json = "1.0.73"
 serde = "1.0.132"
-serenity = { version = "0.10", features = ["unstable_discord_api", "collector"] }
+serenity = { version = "0.11", features = ["unstable_discord_api", "collector"] }
 csv-async = "1.2"
 chrono = "0.4"
 futures = "0.3"
@@ -22,3 +22,4 @@ lazy_static = "1.4"
 pcre2 = "0.2"
 magic-crypt = "3.1"
 tempdir = "0.3"
+rusqlite = "0.29.0"

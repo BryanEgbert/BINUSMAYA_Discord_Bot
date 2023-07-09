@@ -4,6 +4,8 @@ pub mod api;
 pub mod consts;
 pub mod discord;
 pub mod third_party;
+pub mod models;
+pub mod repository;
 
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate magic_crypt;

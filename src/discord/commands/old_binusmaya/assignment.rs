@@ -1,8 +1,8 @@
 use std::{fmt::Display, path::PathBuf, str::FromStr};
 use futures::StreamExt;
-use serenity::{builder::{CreateActionRow, CreateButton}, model::{interactions::message_component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
+use serenity::{builder::{CreateActionRow, CreateButton}, model::{application::component::ButtonStyle, prelude::*}, framework::standard::{CommandResult, macros::command}, prelude::*};
 
-use crate::{discord::{helper::*, commands::old_binusmaya::helper::*}, consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI};
+use crate::{discord::{helper::*, commands::old_binusmaya::helper::*}, consts::{PRIMARY_COLOR, self}, api::old_binusmaya_api::OldBinusmayaAPI};
 use tempdir::TempDir;
 
 enum AssignmentInteraction {
@@ -85,16 +85,17 @@ impl AssignmentInteraction {
 #[description("Get list of assignments")]
 #[aliases("as")]
 async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
-	let user_data = OLDBINUSMAYA_USER_DATA.clone();
-	let mut user_data_content = user_data.lock().await;
+	let user_data = consts::OLD_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 	
-	if user_data_content.contains_key(msg.author.id.as_u64()) {
-		let mut binusmaya_api = OldBinusmayaAPI { cookie: user_data_content.get(msg.author.id.as_u64()).unwrap().to_string() };
+	if user_data.as_ref().is_some_and(|user| user.is_ok()) {
+		let binusmaya_api = OldBinusmayaAPI { cookie: user_data.unwrap()?.cookie };
 		let session_status = binusmaya_api.check_session().await?.session_status;
 
 		if session_status == 0 {
-			binusmaya_api = update_cookie(msg.author.id.as_u64(), binusmaya_api).await;
-			user_data_content.insert(*msg.author.id.as_u64(), binusmaya_api.cookie.clone());
+			update_cookie(
+				&consts::OLD_BINUSMAYA_REPO, 
+				msg.author.id.as_u64(), 
+			).await;
 		}
 
 		let course_menu_list = binusmaya_api.get_course_menu_list().await.unwrap();
@@ -143,7 +144,7 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 			r.kind(InteractionResponseType::UpdateMessage);
 			r.interaction_response_data(|d| {
 				d.content("");
-				d.create_embed(|e| e
+				d.embed(|e| e
 					.title("Individual Assignment(s)")
 					.url(&url)
 					.description(&individual_assignment)
@@ -155,17 +156,17 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 			})
 		}).await?;
 
-		let mut cib = m.await_component_interactions(&ctx).await;
+		let mut cib = m.await_component_interactions(&ctx).build();
 		while let Some(mci) = cib.next().await {
 			let assignment_type = AssignmentInteraction::from_str(&mci.data.custom_id).unwrap();
 			
 			match assignment_type {
-    			AssignmentInteraction::Individual => {
+				AssignmentInteraction::Individual => {
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
 							d.content("");
-							d.create_embed(|e| e
+							d.embed(|e| e
 								.title("Individual Assignment(s)")
 								.url(&url)
 								.description(&individual_assignment)
@@ -175,11 +176,11 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 						})
 					}).await?;
 				},
-   				AssignmentInteraction::Group => {
+					AssignmentInteraction::Group => {
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
-							d.create_embed(|e| e
+							d.embed(|e| e
 								.title("Group Assignment(s)")
 								.url(&url)
 								.description(&group_assignment)
@@ -212,7 +213,7 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
 							d.content("");
-							d.create_embed(|e| e
+							d.embed(|e| e
 								.title("Individual Assignment(s)")
 								.url(&url)
 								.description(&individual_assignment)
@@ -245,7 +246,7 @@ async fn assignment(ctx: &Context, msg: &Message) -> CommandResult {
 					mci.create_interaction_response(&ctx, |r| {
 						r.kind(InteractionResponseType::UpdateMessage);
 						r.interaction_response_data(|d| {
-							d.create_embed(|e| e
+							d.embed(|e| e
 								.title("Group Assignment(s)")
 								.url(&url)
 								.description(&group_assignment)

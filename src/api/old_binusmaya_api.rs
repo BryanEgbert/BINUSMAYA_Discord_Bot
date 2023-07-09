@@ -4,7 +4,7 @@ use reqwest::{header::{HeaderMap, CONTENT_TYPE, HOST, HeaderValue, ORIGIN, REFER
 use serde::{Deserialize, Deserializer, Serialize};
 use thirtyfour::Cookie;
 
-use crate::discord::discord::{UserBinusianData, UserCredential};
+use crate::{models};
 
 
 #[derive(Deserialize, Debug)]
@@ -156,7 +156,7 @@ pub struct SessionStatus {
 	#[serde(rename = "SessionStatus")] pub session_status: u8
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OldBinusmayaAPI {
 	pub cookie: String
 }
@@ -251,13 +251,13 @@ impl OldBinusmayaAPI {
 		Ok(response)
 	}
 
-	pub async fn get_binusian_data(&self) -> Result<BinusianData, reqwest::Error> {
+	pub async fn get_binusian_data(&self) -> Result<models::user::BinusianData, reqwest::Error> {
 		let client = self.init_client().await;
 		let res = client
 			.post("https://binusmaya.binus.ac.id/services/ci/index.php/general/getBinusianData")
 			.send()
 			.await?
-			.json::<BinusianData>()
+			.json::<models::user::BinusianData>()
 			.await?;
 
 		Ok(res)
@@ -283,7 +283,7 @@ impl OldBinusmayaAPI {
 		binusmaya_api
 	}
 
-	pub async fn login(binusian_data: &UserBinusianData, user_credential: &UserCredential) -> Self {
+	pub async fn login(binusian_data: &models::user::UserBinusianData, user_credential: &models::user::UserCredential) -> Self {
 		let mut params = HashMap::with_capacity(7);
 		params.insert("displayName", binusian_data.display_name.clone());
 		params.insert("userName", user_credential.email.clone());
@@ -332,125 +332,5 @@ impl OldBinusmayaAPI {
 		std::io::copy(&mut content, &mut file).unwrap();
 
 		Ok(())
-	}
-}
-
-#[cfg(test)]
-mod tests {
-use crate::{discord::helper::update_cookie, consts::OLDBINUSMAYA_USER_DATA};
-
-use super::*;
-	const COOKIE_VAL: &str = "PHPSESSID=j4f4hfv6lq17obfin5nbg3j926";
-
-	#[tokio::test]
-	async fn check_session() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.check_session().await.unwrap();
-		println!("{:#?}", res);
-	}
-	#[tokio::test]
-	async fn get_binusian_data() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_binusian_data().await.unwrap();
-
-		println!("{:#?}", res);
-	}
-	#[tokio::test]
-	async fn get_sat() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_sat().await.unwrap();
-
-		println!("{:#?}", res);
-
-		assert_eq!(res.sat_points.is_empty(), false);
-	}
-
-	#[tokio::test]
-	async fn get_community_service() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_comnunity_service().await.unwrap();
-
-		println!("{:#?}", res);
-
-		assert_eq!(res.list.is_empty(), false);
-	}
-
-	#[tokio::test]
-	async fn get_courses() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_courses().await.unwrap();
-
-		println!("{:#?}", res);
-	}
-
-	#[tokio::test]
-	async fn get_individual_assignments() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_individual_assignments("CHAR6013001", "021583", "2110", "LEC", "21679").await.unwrap();
-
-		println!("{}", res);
-	}
-
-	#[tokio::test]
-	async fn get_course_menu_list() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let res = binusmaya_api.get_course_menu_list().await.unwrap();
-
-		println!("{:#?}", res); 
-	}
-
-	#[tokio::test]
-	async fn update_cookie_test() {
-		let user_data = OLDBINUSMAYA_USER_DATA.clone();
-		let mut user_data_content = user_data.lock().await;
-		user_data_content.insert(123, COOKIE_VAL.to_string());
-		let cookie = user_data_content.get(&123).unwrap();
-		let mut binusmaya_api = OldBinusmayaAPI {
-			cookie: cookie.to_string()
-		};
-
-		let session_status = binusmaya_api.check_session().await.unwrap().session_status;
-		println!("{}", session_status);
-
-		if session_status == 0 {
-			println!("update cookie");
-			binusmaya_api = update_cookie(&123, binusmaya_api).await;
-			println!("{:?}", binusmaya_api);
-			user_data_content.insert(123, binusmaya_api.cookie.clone());
-			println!("{:#?}", user_data_content);
-		}
-
-		let sat = binusmaya_api.get_sat().await.unwrap();
-		println!("{:#?}", sat);
-	}
-
-	#[tokio::test]
-	async fn download_assignment_test() {
-		let binusmaya_api = OldBinusmayaAPI {
-			cookie: COOKIE_VAL.to_string()
-		};
-
-		let _res = binusmaya_api.download_assignment(r"general_course_outline\course_outline\assignment\RS1\010612\2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx", &PathBuf::from("2020100113534300000581_Assignment 1 (Minggu ke-4) (Individual).docx")).await.unwrap();
 	}
 }

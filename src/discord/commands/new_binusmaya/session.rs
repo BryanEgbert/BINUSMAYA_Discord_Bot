@@ -10,7 +10,7 @@ use serenity::model::prelude::*;
 use serenity::prelude::*;
 
 use crate::api::new_binusmaya_api::NewBinusmayaAPI;
-use crate::consts::{NEWBINUSMAYA_USER_DATA, PRIMARY_COLOR};
+use crate::consts::{PRIMARY_COLOR, self};
 use crate::discord::helper::{Nav, select_menu};
 
 async fn academic_period_menu_options(binusmaya_api: &NewBinusmayaAPI) -> Vec<CreateSelectMenuOption> {
@@ -45,8 +45,10 @@ async fn course_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_period: &
  
 	for course in courses {
 		let mut opt = CreateSelectMenuOption::default();
+
 		opt.label(&course.course_name);
 		opt.value(&course.class_id);
+
 		vec_opt.push(opt);
 	}
 
@@ -57,26 +59,17 @@ async fn course_menu_options(binusmaya_api: &NewBinusmayaAPI, academic_period: &
 #[description("Get session details")]
 #[aliases("resource", "res")]
 async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
-    let user_data = NEWBINUSMAYA_USER_DATA.clone();
+    let user_data_opt = consts::NEW_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 
-    if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-        let jwt_exp = user_data
-            .lock()
-            .await
-            .get(msg.author.id.as_u64())
-            .unwrap()
-            .last_registered
-            .add(Duration::weeks(52));
+    if user_data_opt.as_ref().is_some_and(|user| user.is_ok()) {
+        let data = user_data_opt.unwrap()?;
+
+        let jwt_exp = data.last_registered.add(Duration::days(7));
         let now = chrono::offset::Local::now();
+
         if jwt_exp > now {
 			let binusmaya_api = NewBinusmayaAPI {
-                token: user_data
-                    .lock()
-                    .await
-                    .get(msg.author.id.as_u64())
-                    .unwrap()
-                    .auth
-                    .clone(),
+                token: data.auth
             };
 
 			let academic_period_select_menu = select_menu(academic_period_menu_options(&binusmaya_api).await).await;
@@ -133,7 +126,7 @@ async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
 			mci.create_interaction_response(&ctx, |r| {
 				r.kind(InteractionResponseType::ChannelMessageWithSource);
 				r.interaction_response_data(|d| {
-					d.create_embed(|e| e
+					d.embed(|e| e
 						.field("Choose Session Number", format!("Choose session number from 1 - {}", class_details.sessions.len()), false)
 						.footer(|f| f.text("Timeout in 30 seconds, type cancel to cancel operation"))
 						.colour(PRIMARY_COLOR)
@@ -170,7 +163,7 @@ async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
 					m
 				}).await?;
 
-				let mut cib = mesg.await_component_interactions(&ctx).await;
+				let mut cib = mesg.await_component_interactions(&ctx).build();
 				while let Some(mci) = cib.next().await {
 					let nav = Nav::from_str(&mci.data.custom_id).unwrap();
 					match nav {
@@ -190,7 +183,7 @@ async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
 							mci.create_interaction_response(&ctx, |r| {
 								r.kind(InteractionResponseType::UpdateMessage);
 								r.interaction_response_data(|m| {
-									m.create_embed(|e| e
+									m.embed(|e| e
 										.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
 										.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 										.colour(PRIMARY_COLOR)
@@ -217,7 +210,7 @@ async fn session(ctx: &Context, msg: &Message) -> Result<(), CommandError> {
 							mci.create_interaction_response(&ctx, |r| {
 								r.kind(InteractionResponseType::UpdateMessage);
 								r.interaction_response_data(|m| {
-									m.create_embed(|e| e
+									m.embed(|e| e
 										.title(format!("{}\nSession {}", session_details.topic, session_details.session_number))
 										.description(format!("**Class Zoom Link**\n{}\n\n**Subtopics**\n{}\n**Resources**\n{}", session_details.join_url.unwrap_or("No link".to_string()), session_details.course_sub_topic, session_details.resources))
 										.colour(PRIMARY_COLOR)

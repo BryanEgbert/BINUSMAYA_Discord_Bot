@@ -196,56 +196,38 @@ pub struct Lecturer {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
-    #[serde(skip_deserializing)]
-    pub android_redirect_url: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub assessment_type: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub due_date: String,
-    pub duration: Option<String>,
     pub id: String,
-
-    #[serde(skip_deserializing)]
-    pub index: String,
-
-    #[serde(skip_deserializing)]
-    pub ios_redirect_url: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub is_open: bool,
-
-    #[serde(skip_deserializing)]
-    pub is_overdue: bool,
-
-    #[serde(skip_deserializing)]
-    pub last_updated_date: String,
+    pub class_session_id: String,
     pub name: String,
-    pub progress_stamp: u8,
+    #[serde(skip_deserializing)] pub url: Option<String>,
+    #[serde(skip_deserializing)] pub token: Option<String>,
+    #[serde(rename(deserialize = "type"))] pub material_type: Option<String>,
+    pub duration: Option<String>,
+    #[serde(skip_deserializing)] pub index: u16,
+    #[serde(skip_deserializing)] pub is_open: bool,
     pub progress_status: u8,
-
-    #[serde(skip_deserializing)]
-    pub resource_last_updated_date: String,
-
-    #[serde(skip_deserializing)]
-    pub resource_status: String,
+    pub progress_stamp: u8,
+    #[serde(skip_deserializing)] pub times_accessed: u8,
+    #[serde(skip_deserializing)] pub resource_status: String,
+    #[serde(skip_deserializing)] pub last_updated_date: String,
+    #[serde(skip_deserializing)] pub resource_last_updated_date: String,
+    #[serde(skip_deserializing)] pub assessment_type: Option<String>,
     pub resource_type: String,
-
-    #[serde(skip_deserializing)]
-    pub thumbnail: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub times_accessed: u8,
-
-    #[serde(skip_deserializing)]
-    pub token: Option<String>,
-
-    #[serde(rename(deserialize = "type"))]
-    pub material_type: Option<String>,
-
-    #[serde(skip_deserializing)]
-    pub url: Option<String>,
+    #[serde(skip_deserializing)] pub due_date: String,
+    #[serde(skip_deserializing)] pub thumbnail: Option<String>,
+    #[serde(skip_deserializing)] pub is_overdue: bool,
+    #[serde(skip_deserializing)] pub ios_redirect_url: Option<String>,
+    #[serde(skip_deserializing)] pub android_redirect_url: Option<String>,
+    pub is_late_allowed: bool,
+    #[serde(skip_deserializing)] pub submitted_date_first_attemp: Option<String>,
+    pub is_available_offline: bool,
+    pub resource_id: String,
+    pub is_assessment: bool,
+    pub start_date: String,
+    pub is_zoom_available: bool,
+    #[serde(skip_deserializing)] pub wording: String,
+    #[serde(skip_deserializing)] pub hybrid_type: String,
+    #[serde(rename = "isSubmitDHD")] pub is_submit_dhd: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -315,6 +297,8 @@ pub struct SessionDetails {
 
     #[serde(skip_deserializing)]
     pub delivery_mode_desc: String,
+
+    pub start_date_session_utc: String,
     pub end_date_session_utc: String,
 
     #[serde(skip_deserializing)]
@@ -331,7 +315,6 @@ pub struct SessionDetails {
     pub meeting_start: String,
     pub resources: ResourceList,
     pub session_number: u8,
-    pub start_date_session_utc: String,
 
     #[serde(skip_deserializing)]
     pub status: Option<String>,
@@ -869,10 +852,11 @@ impl NewBinusmayaAPI {
     pub async fn update_student_progress(
         &self,
         resource_id: &String,
+        class_id: String
     ) -> Result<reqwest::StatusCode, reqwest::Error> {
         let client = self.init_client().await;
         let response = client
-            .post("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/StudentProgress")
+            .post(format!("https://apim-bm7-prod.azure-api.net/func-bm7-course-prod/ClassSession/{}/StudentProgress", class_id))
             .json::<StudentProgressPayload>(&StudentProgressPayload {
                 resource_id: resource_id.to_string(),
                 status: 2,

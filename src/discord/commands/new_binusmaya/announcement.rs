@@ -2,14 +2,14 @@ use chrono::Duration;
 use pcre2::bytes::RegexBuilder;
 use serenity::{
     framework::standard::{macros::command, CommandResult},
-    model::{prelude::*, interactions::message_component::ButtonStyle},
+    model::{prelude::*, application::component::ButtonStyle},
     prelude::*, builder::CreateButton,
 };
 use std::ops::Add;
 
 use crate::{
     api::new_binusmaya_api::{AnnouncementDetails, AnnouncementResponse, NewBinusmayaAPI},
-    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
+    consts::{PRIMARY_COLOR, self},
 };
 
 fn parse_html(mut content: String) -> String {
@@ -114,28 +114,19 @@ async fn send_announcement_details(
 #[command]
 #[description("Get the announcements in new binusmaya")]
 async fn announcement(ctx: &Context, msg: &Message) -> CommandResult {
-    let user_data = NEWBINUSMAYA_USER_DATA.clone();
+    let user_data_opt = consts::NEW_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 
-    if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-        let jwt_exp = user_data
-            .lock()
-            .await
-            .get(msg.author.id.as_u64())
-            .unwrap()
-            .last_registered
-            .add(Duration::weeks(52));
+    if user_data_opt.as_ref().is_some_and(|user| user.is_ok()) {
+        let data = user_data_opt.unwrap()?;
+
+        let jwt_exp = data.last_registered.add(Duration::days(7));
         let now = chrono::offset::Local::now();
+
         if jwt_exp > now {
             let binusmaya_api = NewBinusmayaAPI {
-                token: user_data
-                    .lock()
-                    .await
-                    .get(msg.author.id.as_u64())
-                    .unwrap()
-                    .auth
-                    .clone(),
+                token: data.auth
             };
-            // let mut page = 1;
+
             let announcement_list = binusmaya_api.get_announcement(1).await?;
 
             msg.channel_id

@@ -9,34 +9,25 @@ use serenity::{
 
 use crate::{
     api::new_binusmaya_api::NewBinusmayaAPI,
-    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
+    consts::{PRIMARY_COLOR, self},
 };
 
 #[command]
 #[description("Get upcoming sessions")]
 async fn upcoming(ctx: &Context, msg: &Message) -> CommandResult {
-    let user_data = NEWBINUSMAYA_USER_DATA.clone();
+    let user_data_opt = consts::NEW_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 
-    if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-        let jwt_exp = user_data
-            .lock()
-            .await
-            .get(msg.author.id.as_u64())
-            .unwrap()
-            .last_registered
-            .add(Duration::weeks(52));
+    if user_data_opt.as_ref().is_some_and(|user| user.is_ok()) {
+        let data = user_data_opt.unwrap()?;
+
+        let jwt_exp = data.last_registered.add(Duration::days(7));
         let now = chrono::offset::Local::now();
 
         if jwt_exp > now {
             let binusmaya_api = NewBinusmayaAPI {
-                token: user_data
-                    .lock()
-                    .await
-                    .get(msg.author.id.as_u64())
-                    .unwrap()
-                    .auth
-                    .clone(),
+                token: data.auth
             };
+
             let upcoming_session = binusmaya_api.get_upcoming_sessions().await.unwrap_or(None);
 
             if let Some(session) = upcoming_session {

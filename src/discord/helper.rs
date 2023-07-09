@@ -1,15 +1,13 @@
-use std::{error::Error, fmt::Display, str::FromStr, fs::read_to_string};
+use std::{error::Error, fmt::Display, str::FromStr};
 
-use csv_async::AsyncReaderBuilder;
-use futures::StreamExt;
+
+
 use serenity::{
     builder::{CreateActionRow, CreateButton, CreateSelectMenu, CreateSelectMenuOption},
-    model::interactions::message_component::ButtonStyle,
+    model::application::component::ButtonStyle,
 };
 
-use crate::{consts::{OLDBINUSMAYA_USER_FILE, OLDBINUSMAYA_USER_DATA}, api::old_binusmaya_api::OldBinusmayaAPI};
-
-use super::discord::OldBinusmayaUserRecord;
+use crate::{consts, api::old_binusmaya_api::OldBinusmayaAPI, repository};
 
 #[derive(PartialEq)]
 pub enum Nav {
@@ -69,42 +67,20 @@ impl Nav {
 }
 
 pub async fn update_cookie_all() {
-    let oldbinusmaya_content = read_to_string(OLDBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
+    let user_data = consts::OLD_BINUSMAYA_REPO.get_all().unwrap();
 
-    let rdr = AsyncReaderBuilder::new()
-        .has_headers(false)
-        .create_deserializer(oldbinusmaya_content.as_bytes());
+    for user in user_data {
+        let old_binusmaya_api = OldBinusmayaAPI::login(&user.binusian_data, &user.user_credential).await;
 
-    let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
-
-    while let Some(record) = records.next().await {
-        let record = record.unwrap();
-        let old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
-
-        OLDBINUSMAYA_USER_DATA.try_lock().unwrap().insert(record.member_id, old_binusmaya_api.cookie);
+        consts::OLD_BINUSMAYA_REPO.update_cookie_by_id(&user.member_id, old_binusmaya_api.cookie).unwrap();
     }
 }
 
-pub async fn update_cookie(user_id: &u64, mut old_binusmaya_api: OldBinusmayaAPI) -> OldBinusmayaAPI {
-    let oldbinusmaya_content = read_to_string(OLDBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
-    
-    let rdr = AsyncReaderBuilder::new()
-    .has_headers(false)
-        .create_deserializer(oldbinusmaya_content.as_bytes());
+pub async fn update_cookie(repository: &repository::old_binusmaya_repository::OldBinusmayaRepository, member_id: &u64) {
+    let user = repository.get_by_id(member_id).unwrap().unwrap();
 
-    let mut records = rdr.into_deserialize::<OldBinusmayaUserRecord>();
-    
-    while let Some(record) = records.next().await {
-        let record = record.unwrap();
-        
-        if &record.member_id != user_id {
-            continue;
-        }
-
-        old_binusmaya_api = OldBinusmayaAPI::login(&record.binusian_data, &record.user_credential).await;
-    }
-
-    old_binusmaya_api
+    let old_binusmaya_api = OldBinusmayaAPI::login(&user.binusian_data, &user.user_credential).await;
+    repository.update_cookie_by_id(member_id, old_binusmaya_api.cookie).unwrap();
 }
 
 pub async fn select_menu(menu_options: Vec<CreateSelectMenuOption>) -> CreateSelectMenu {

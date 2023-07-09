@@ -9,7 +9,7 @@ use std::{ops::Add, str::FromStr};
 
 use crate::{
     api::new_binusmaya_api::NewBinusmayaAPI,
-    consts::{PRIMARY_COLOR, NEWBINUSMAYA_USER_DATA},
+    consts::{PRIMARY_COLOR, self},
     discord::helper::Nav,
 };
 
@@ -22,28 +22,20 @@ use crate::{
 #[example("2022-01-05")]
 async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let date = args.single::<String>().unwrap();
-    let user_data = NEWBINUSMAYA_USER_DATA.clone();
+    let user_data_opt = consts::NEW_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 
-    if user_data.lock().await.contains_key(msg.author.id.as_u64()) {
-        let jwt_exp = user_data
-            .lock()
-            .await
-            .get(msg.author.id.as_u64())
-            .unwrap()
-            .last_registered
-            .add(Duration::weeks(52));
+    if user_data_opt.as_ref().is_some_and(|user| user.is_ok()) {
+        let data = user_data_opt.unwrap()?;
+
+        let jwt_exp = data.last_registered.add(Duration::days(7));
         let now = chrono::offset::Local::now();
+        
         if jwt_exp > now {
             let mut parsed_date = NaiveDate::parse_from_str(&date, "%Y-%-m-%-d").unwrap();
             let binusmaya_api = NewBinusmayaAPI {
-                token: user_data
-                    .lock()
-                    .await
-                    .get(msg.author.id.as_u64())
-                    .unwrap()
-                    .auth
-                    .clone(),
+                token: data.auth
             };
+            
             let mut schedule = binusmaya_api.get_schedule(&parsed_date).await?;
             let mesg: Message;
 
@@ -78,10 +70,10 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
             }
 
             let mut cib = mesg
-                .await_component_interactions(&ctx)
-                .await;
+                .await_component_interactions(&ctx).build();
+
             while let Some(mci) = cib.next().await {
-                parsed_date = parsed_date.pred();
+                parsed_date = parsed_date.pred_opt().unwrap();
                 let nav = Nav::from_str(&mci.data.custom_id).unwrap();
                 match nav {
                     Nav::Previous => {
@@ -90,7 +82,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                             mci.create_interaction_response(&ctx, |r| {
                                 r.kind(InteractionResponseType::UpdateMessage);
                                 r.interaction_response_data(|m| {
-                                    m.create_embed(|e| {
+                                    m.embed(|e| {
                                         e.title(format!("Schedule for {}", parsed_date.to_string()))
                                             .description(format!(
                                                 "**{} Session(s)**\n{}",
@@ -107,7 +99,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                             mci.create_interaction_response(&ctx, |r| {
                                 r.kind(InteractionResponseType::UpdateMessage);
                                 r.interaction_response_data(|m| {
-                                    m.create_embed(|e| {
+                                    m.embed(|e| {
                                         e.title(format!("Schedule for {}", parsed_date.to_string()))
                                             .colour(PRIMARY_COLOR)
                                             .field(
@@ -123,13 +115,13 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                         }
                     }
                     Nav::Next => {
-                        parsed_date = parsed_date.succ().succ();
+                        parsed_date = parsed_date.succ_opt().unwrap();
                         schedule = binusmaya_api.get_schedule(&parsed_date).await?;
                         if let Some(class) = schedule {
                             mci.create_interaction_response(&ctx, |r| {
                                 r.kind(InteractionResponseType::UpdateMessage);
                                 r.interaction_response_data(|m| {
-                                    m.create_embed(|e| {
+                                    m.embed(|e| {
                                         e.title(format!("Schedule for {}", parsed_date.to_string()))
                                             .description(format!(
                                                 "**{} Session(s)**\n{}",
@@ -146,7 +138,7 @@ async fn schedule(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult
                             mci.create_interaction_response(&ctx, |r| {
                                 r.kind(InteractionResponseType::UpdateMessage);
                                 r.interaction_response_data(|m| {
-                                    m.create_embed(|e| {
+                                    m.embed(|e| {
                                         e.title(format!("Schedule for {}", parsed_date.to_string()))
                                             .colour(PRIMARY_COLOR)
                                             .field(

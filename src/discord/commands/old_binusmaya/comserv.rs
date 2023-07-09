@@ -3,20 +3,21 @@ use serenity::framework::standard::macros::command;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
-use crate::{consts::{OLDBINUSMAYA_USER_DATA, PRIMARY_COLOR}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
+use crate::{consts::{PRIMARY_COLOR, self}, api::old_binusmaya_api::OldBinusmayaAPI, discord::helper::update_cookie};
 
 #[command]
 async fn comserv(ctx: &Context, msg: &Message) -> CommandResult {
-	let user_data = OLDBINUSMAYA_USER_DATA.clone();
-	let mut user_data_content = user_data.lock().await;
+	let user_data = consts::OLD_BINUSMAYA_REPO.get_by_id(msg.author.id.as_u64());
 	
-	if user_data_content.contains_key(msg.author.id.as_u64()) {
-		let mut binusmaya_api = OldBinusmayaAPI { cookie: user_data_content.get(msg.author.id.as_u64()).unwrap().to_string() };
+	if user_data.as_ref().is_some_and(|user| user.is_ok()) {
+		let binusmaya_api = OldBinusmayaAPI { cookie: user_data.unwrap()?.cookie };
 		let session_status = binusmaya_api.check_session().await?.session_status;
 
 		if session_status == 0 {
-			binusmaya_api = update_cookie(msg.author.id.as_u64(), binusmaya_api).await;
-			user_data_content.insert(*msg.author.id.as_u64(), binusmaya_api.cookie.clone());
+			update_cookie(
+				&consts::OLD_BINUSMAYA_REPO, 
+				msg.author.id.as_u64(), 
+			).await;
 		}
 
 		let comserv = binusmaya_api.get_comnunity_service().await?;

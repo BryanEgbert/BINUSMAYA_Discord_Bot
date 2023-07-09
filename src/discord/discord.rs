@@ -1,5 +1,5 @@
 use chrono::{DateTime, Duration, Local, NaiveDate};
-use csv_async::AsyncReaderBuilder;
+
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use serenity::{framework::standard::{
@@ -12,9 +12,9 @@ use serenity::{
 };
 use std::{
     collections::HashSet,
-    fs::{metadata, read_to_string, File},
+    fs::{metadata, File},
     sync::Arc,
-    thread::{self, sleep}, process::Command,
+    thread::{self, sleep},
 };
 use tokio::fs::{write, File as TokioFile};
 
@@ -29,56 +29,20 @@ use crate::{discord::{commands::{
     old_binusmaya::{
         sat::*, comserv::*, assignment::*,
     }
-}, helper::update_cookie_all}, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_DATA, NEWBINUSMAYA_USER_FILE}, api::{new_binusmaya_api::*, old_binusmaya_api::{BinusianData}, self}};
+}, helper::update_cookie_all}, consts::{OLDBINUSMAYA_USER_FILE, LOGIN_FILE, NEWBINUSMAYA_USER_FILE, self}, api::{new_binusmaya_api::*, self}};
 
 use std::env;
 
+const WIFI_ATTENDANCE: &str = "Wifi Attendance";
 const VIRTUAL_CLASS: &str = "Virtual Class";
 const FORUM: &str = "Forum";
 const GSLC: &str = "GSLC";
-const ASSIGNMENT: &str = "Assignment";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewBinusmayaUserRecord {
     pub member_id: u64,
     pub auth: String,
     pub last_registered: DateTime<Local>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct UserCredential {
-    pub email: String,
-    pub password: String
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct UserBinusianData {
-    pub binusian_id: String,
-    pub display_name: String,
-    pub user_id: String,
-    pub role_id: u8,
-    pub specific_role_id: u8,
-}
-
-impl UserBinusianData {
-    pub fn init_data(binusian_data: &BinusianData) -> Self {
-        let user_binusian_data = UserBinusianData {
-            binusian_id: binusian_data.binusian_id.clone(),
-            display_name: format!("{} {}", binusian_data.first_name, binusian_data.last_name),
-            user_id: binusian_data.nim.clone(),
-            role_id: 2,
-            specific_role_id: 104,
-        };
-
-        user_binusian_data
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct OldBinusmayaUserRecord {
-    pub member_id: u64,
-    pub user_credential: UserCredential,
-    pub binusian_data: UserBinusianData
 }
 
 pub struct NewBinusmayaUserAuthInfo {
@@ -109,21 +73,21 @@ pub struct OldBinusmaya;
 pub struct Handler;
 
 fn start_third_party_apps() {
-    Command::new("./chromedriver")
-        .arg("--port=9222")
-        .spawn()
-        .expect("Failed to run chrome driver");
+    // Command::new("./chromedriver")
+    //     .arg("--port=9222")
+    //     .spawn()
+    //     .expect("Failed to run chrome driver");
 
-    Command::new("sh")
-        .args([
-            "./browsermob-proxy-2.1.4/bin/browsermob-proxy",
-            "--address",
-            "localhost",
-            "--port",
-            "8082",
-        ])
-        .spawn()
-        .expect("Failed to start browsermob-proxy");
+    // Command::new("sh")
+    //     .args([
+    //         "./browsermob-proxy-2.1.4/bin/browsermob-proxy",
+    //         "--address",
+    //         "localhost",
+    //         "--port",
+    //         "8082",
+    //     ])
+    //     .spawn()
+    //     .expect("Failed to start browsermob-proxy");
 }
 
 async fn fetch_file() {
@@ -163,17 +127,17 @@ async fn update_student_progress(new_binusmaya_api: &NewBinusmayaAPI, schedule_d
     for resource in class_session.resources.list {
         if !resource.resource_type.eq(VIRTUAL_CLASS)
             && !resource.resource_type.eq(FORUM)
-            && !resource.resource_type.eq(ASSIGNMENT)
+            && !resource.resource_type.eq(WIFI_ATTENDANCE)
         {
             new_binusmaya_api
-                .update_student_progress(&resource.id)
+                .update_student_progress(&resource.id, resource.class_session_id)
                 .await
                 .unwrap();
         }
     }
-}
+} 
 
-async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails, user_id: &u64) -> Result<(), chrono::format::ParseError> {
+async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI, schedule_details: ScheduleDetails, member_id: &u64) -> Result<(), chrono::format::ParseError> {
     let now = NaiveDate::parse_from_str(chrono::offset::Local::now().format("%FT%X").to_string().as_str(),"%FT%X")?;
     let date_end = NaiveDate::parse_from_str(schedule_details.date_start.as_str(), "%FT%X")?.checked_sub_signed(Duration::days(7)).unwrap();
 
@@ -181,7 +145,7 @@ async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI,
         let class_session = new_binusmaya_api
             .get_resource(schedule_details.custom_param.class_session_id.to_string())
             .await.unwrap();
-        let private_channel = UserId(*user_id).create_dm_channel(&ctx.http).await;
+        let private_channel = UserId(*member_id).create_dm_channel(&ctx.http).await;
 
         if let Ok(channel) = private_channel {
             let mut content = MessageBuilder::new();
@@ -207,12 +171,13 @@ async fn post_forum_reminder(ctx: &Context, new_binusmaya_api: &NewBinusmayaAPI,
     Ok(())
 }
 
-async fn loop_student_schedule(ctx: &Context) {
-    let user_data = NEWBINUSMAYA_USER_DATA.clone();
-    stream::iter(user_data.lock().await.iter())
-        .for_each_concurrent(8, |(member_id, user_auth_info)| async move {
+async fn loop_student_schedule(_ctx: &Context) {
+    let user_data = consts::NEW_BINUSMAYA_REPO.get_all().unwrap();
+
+    stream::iter(user_data)
+        .for_each_concurrent(8, |user| async move {
             let binusmaya_api = NewBinusmayaAPI {
-                token: user_auth_info.auth.to_string(),
+                token: user.auth.to_string(),
             };
             let schedule = binusmaya_api
                 .get_schedule(
@@ -231,10 +196,10 @@ async fn loop_student_schedule(ctx: &Context) {
             if let Some(classes) = schedule {
                 stream::iter(classes.schedule)
                 .for_each_concurrent(8, |s| async {
-                    let schedule_details = s.clone();
+                    // let schedule_details = s.clone();
                     
                     update_student_progress(&binusmaya_api, s).await;
-                    post_forum_reminder(ctx, &binusmaya_api, schedule_details, member_id).await.unwrap();
+                    // post_forum_reminder(ctx, &binusmaya_api, schedule_details, &user.member_id).await.unwrap();
                 })
                 .await;
             }
@@ -247,8 +212,8 @@ async fn daily_event(ctx: &Context) {
         let metadata = metadata(LOGIN_FILE).unwrap();
 
         if let Ok(time) = metadata.modified() {
-            let last_login = DateTime::<Local>::from(time).date();
-            if last_login.succ().eq(&chrono::offset::Local::now().date()) {
+            let last_login = DateTime::<Local>::from(time).date_naive();
+            if last_login.succ_opt().unwrap().eq(&chrono::offset::Local::now().date_naive()) {
                 loop_student_schedule(ctx).await;
 
                 File::create(LOGIN_FILE).unwrap_or_else(|e| {
@@ -266,26 +231,28 @@ async fn daily_event(ctx: &Context) {
 #[async_trait]
 impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, data_about_bot: Ready) {
-        fetch_file().await;
-        start_third_party_apps();
+        // TODO: change to intialize sqlite instead
+        // fetch_file().await;
+        // start_third_party_apps();
         
-        let newbinusmaya_content = read_to_string(NEWBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
+        // let newbinusmaya_content = read_to_string(NEWBINUSMAYA_USER_FILE).expect("Something's wrong when reading a file");
 
-        let rdr = AsyncReaderBuilder::new()
-            .has_headers(false)
-            .create_deserializer(newbinusmaya_content.as_bytes());
 
-        let mut records = rdr.into_deserialize::<NewBinusmayaUserRecord>();
-        while let Some(record) = records.next().await {
-            let record = record.unwrap();
-            NEWBINUSMAYA_USER_DATA.lock().await.insert(
-                record.member_id,
-                NewBinusmayaUserAuthInfo {
-                    auth: record.auth,
-                    last_registered: record.last_registered,
-                },
-            );
-        }
+        // let rdr = AsyncReaderBuilder::new()
+        //     .has_headers(false)
+        //     .create_deserializer(newbinusmaya_content.as_bytes());
+
+        // let mut records = rdr.into_deserialize::<models::user::NewBinusmayaUser>();
+        // while let Some(record) = records.next().await {
+        //     let record = record.unwrap();
+        //     NEWBINUSMAYA_USER_DATA.lock().await.insert(
+        //         record.member_id,
+        //         NewBinusmayaUserAuthInfo {
+        //             auth: record.auth,
+        //             last_registered: record.last_registered,
+        //         },
+        //     );
+        // }
 
         update_cookie_all().await;
 
@@ -346,7 +313,9 @@ pub async fn run() {
         .expect("Expected application id in env")
         .parse()
         .expect("Invalid application id");
-    let http = Http::new_with_token(&token);
+
+    let http = Http::new(&token);
+
     let (owners, _) = match http.get_current_application_info().await {
         Ok(info) => {
             let mut owners = HashSet::new();
@@ -360,10 +329,12 @@ pub async fn run() {
                 Err(e) => panic!("Couldn't get bot id: {:?}", e),
             }
         }
+
         Err(e) => panic!("Couldn't get app info: {:?}", e),
     };
+
     let framework = StandardFramework::new()
-        .configure(|c| c.delimiter(';').prefix("=").owners(owners))
+        .configure(|c| c.delimiter(';').prefix("!").owners(owners))
         .before(before)
         .after(after_hook)
         .unrecognised_command(unknown_command)
@@ -372,7 +343,11 @@ pub async fn run() {
         .group(&OLDBINUSMAYA_GROUP)
         .help(&HELP);
 
-    let mut client = Client::builder(token)
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT;
+
+    let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
         .framework(framework)
         .application_id(app_id)
